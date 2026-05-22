@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mis Apuestas | TEAPUESTOVIP.COM</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        .header-personal { border-bottom: 2px solid #eee; margin-bottom: 25px; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .header-personal h2 { color: #0d47a1; margin: 0; }
+        
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f8f9fa; padding: 15px; text-align: left; color: #666; font-size: 0.9em; border-bottom: 2px solid #dee2e6; }
+        td { padding: 15px; border-bottom: 1px solid #eee; font-size: 0.95em; vertical-align: middle; }
+        
+        tbody tr { transition: 0.2s; }
+        tbody tr:hover { background-color: #f1f7ff; }
+
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; display: inline-block; }
+        .GANADA { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .PERDIDA { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .PENDIENTE { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        
+        .voto-si { color: #28a745; font-weight: bold; }
+        .voto-no { color: #dc3545; font-weight: bold; }
+        
+        .btn-inicio { display: inline-block; padding: 10px 20px; background: #0d47a1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; transition: 0.3s; }
+        .btn-inicio:hover { background: #1565c0; }
+
+        .monto-ganador { font-weight: bold; color: #1b5e20; }
+        .monto-perdedor { color: #d32f2f; }
+
+        .tipo-icon { margin-right: 8px; color: #999; font-size: 0.9em; }
+
+        @media (max-width: 600px) {
+            .header-personal { flex-direction: column; gap: 15px; text-align: center; }
+            .container { padding: 15px; }
+            table thead { display: none; }
+            table tbody tr { display: block; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; background: #fff; padding: 10px; }
+            table td { display: block; text-align: right; padding: 8px 10px; border-bottom: 1px solid #eee; position: relative; }
+            table td::before { content: attr(data-label); position: absolute; left: 10px; font-weight: bold; color: #666; text-transform: uppercase; font-size: 0.75em; }
+        }
+
+        .btn-filtro { padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 20px; cursor: pointer; font-size: 0.85em; transition: 0.3s; color: #666; }
+        .btn-filtro.active { background: #0d47a1; color: white; border-color: #0d47a1; font-weight: bold; }
+
+        .saldo-card { background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); color: white; padding: 12px 20px; border-radius: 12px; min-width: 180px; text-align: center; position: relative; }
+        .saldo-monto { font-size: 1.4rem; font-weight: 700; font-family: 'Courier New', monospace; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header-personal">
+            <div><h2><i class="fas fa-history"></i> Mi Historial</h2></div>
+            <div class="saldo-card">
+                <div style="font-size: 0.65rem; opacity: 0.9;">Saldo Disponible</div>
+                <div class="saldo-monto"><span style="font-size: 1rem;">$</span>{{ "{:,.2f}".format(current_user.saldo) }}</div>
+            </div>
+            <div><a href="{{ url_for('home') }}" class="btn-inicio"><i class="fas fa-home"></i> Inicio</a></div>
+        </div>
+
+        <div class="filtros-container" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-filtro active" onclick="filtrarApuestas('TODAS', this)">Todas</button>
+            <button class="btn-filtro" onclick="filtrarApuestas('GANADA', this)">Ganadas</button>
+            <button class="btn-filtro" onclick="filtrarApuestas('PERDIDA', this)">Perdidas</button>
+            <button class="btn-filtro" onclick="filtrarApuestas('PENDIENTE', this)">Pendientes</button>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Juego / Detalle</th>
+                        <th>Tu Jugada</th>
+                        <th>Inversión</th>
+                        <th>Estado</th>
+                        <th>Retorno</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# --- BLOQUE DE MERCADOS --- #}
+                    {% for apuesta in mercados %}
+                    <tr class="fila-apuesta">
+                        <td data-label="Fecha" style="color: #888; font-size: 0.85em;">
+                            {{ apuesta.fecha.strftime('%d/%m/%Y %H:%M') if apuesta.fecha else 'N/A' }}
+                        </td>
+                        <td data-label="Juego">
+                            <i class="fas fa-chart-line tipo-icon" title="Mercado"></i>
+                            <strong>{{ apuesta.mercado.pregunta }}</strong>
+                        </td>
+                        <td data-label="Tu Jugada">
+                            {# Aquí mostramos SI o NO para los mercados #}
+                            <span class="voto-{{ apuesta.opcion_elegida|lower }}">{{ apuesta.opcion_elegida }}</span>
+                        </td>
+                        <td data-label="Inversión">${{ "{:,.2f}".format(apuesta.monto) }}</td>
+                        <td data-label="Estado">
+                            <span class="badge {{ apuesta.estado }}">{{ apuesta.estado }}</span>
+                        </td>
+                        <td data-label="Retorno">
+                            {% if apuesta.estado == 'GANADA' %}
+                                <span class="monto-ganador">+${{ "{:,.2f}".format(apuesta.monto_ganado) }}</span>
+                            {% elif apuesta.estado == 'PENDIENTE' %}
+                                <span style="color: #666; font-style: italic;">En juego...</span>
+                            {% else %}
+                                <span class="monto-perdedor">$0.00</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {# --- BLOQUE DE ANIMALITOS MODIFICADO --- #}
+                    {% for apuesta in animalitos %}
+                    <tr class="fila-apuesta">
+                        <td data-label="Fecha" style="color: #888; font-size: 0.85em;">
+                            {{ apuesta.fecha.strftime('%d/%m/%Y %H:%M') if apuesta.fecha else 'N/A' }}
+                        </td>
+                        <td data-label="Juego">
+                            <i class="fas fa-paw tipo-icon" title="Animalitos"></i>
+                            <strong>Sorteo Animalito</strong>
+                            {% if apuesta.sorteo and apuesta.sorteo.horario %}
+                                <span style="display: block; font-size: 0.85em; color: #2196f3; font-weight: bold; margin-top: 2px;">
+                                    Hora: {{ apuesta.sorteo.horario.strftime('%I:%M %p') }}
+                                </span>
+                            {% else %}
+                                <span style="display: block; font-size: 0.85em; color: #888; font-weight: bold; margin-top: 2px;">
+                                    Sorteo #{{ apuesta.sorteo_id }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Tu Jugada">
+                            {# Corregido: usamos apuesta.animal_elegido y el diccionario #}
+                            {% if apuesta.animal_elegido in ['PAR', 'IMPAR'] %}
+                                <span class="badge bg-secondary">{{ apuesta.animal_elegido }}</span>
+                            {% else %}
+                                <strong>{{ apuesta.animal_elegido }}</strong> - {{ animalitos_dict.get(apuesta.animal_elegido, 'Desconocido') }}
+                            {% endif %}
+                        </td>
+                        <td data-label="Inversión">${{ "{:,.2f}".format(apuesta.monto) }}</td>
+                        <td data-label="Estado">
+                            <span class="badge {{ apuesta.estado }}">{{ apuesta.estado }}</span>
+                        </td>
+                        <td data-label="Retorno">
+                            {% if apuesta.estado == 'GANADA' %}
+                                <span class="monto-ganador">+${{ "{:,.2f}".format(apuesta.monto_ganado) }}</span>
+                            {% elif apuesta.estado == 'PENDIENTE' %}
+                                <span style="color: #666; font-style: italic;">En juego...</span>
+                            {% else %}
+                                <span class="monto-perdedor">$0.00</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if not mercados and not animalitos %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                            <i class="fas fa-ghost" style="font-size: 2em; display: block; margin-bottom: 10px;"></i>
+                            Aún no has realizado ninguna apuesta en el sistema.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer style="text-align: center; margin-top: 30px; color: #888; font-size: 0.8em;">
+        &copy; 2026 TEAPUESTOVIP.COM - Panel de Usuario
+    </footer>
+
+    <script>
+        function filtrarApuestas(estado, boton) {
+            // 1. Cambiar estado visual de los botones
+            document.querySelectorAll('.btn-filtro').forEach(btn => btn.classList.remove('active'));
+            boton.classList.add('active');
+
+            // 2. Filtrar las filas
+            const filas = document.querySelectorAll('tbody tr.fila-apuesta');
+            
+            filas.forEach(fila => {
+                // Buscamos la celda que tiene el atributo data-label="Estado"
+                const celdaEstado = fila.querySelector('td[data-label="Estado"] .badge');
+                
+                if (celdaEstado) {
+                    // Obtenemos el texto del estado (PENDIENTE, GANADA, PERDIDA)
+                    const estadoFila = celdaEstado.innerText.trim().toUpperCase();
+                    
+                    if (estado === 'TODAS' || estadoFila === estado) {
+                        fila.style.display = ''; // Mostrar
+                    } else {
+                        fila.style.display = 'none'; // Ocultar
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

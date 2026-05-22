@@ -1,0 +1,14 @@
+# Entorno virtual
+venv/
+.venv/
+ENV/
+
+# Base de datos local (evita sobreescribir la de producción)
+instance/
+*.db
+
+# Archivos temporales de Python y sistema
+__pycache__/
+*.pyc
+.DS_Store
+.env

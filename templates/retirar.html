@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retirar Fondos | TEAPUESTOVIP.COM</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+        --bg-body: #020d1a;
+        --bg-card: #1e293b;
+        --text-main: #f8fafc;
+        --text-muted: #cbd5e1; /* Un gris mucho más claro */
+        --accent-primary: #38bdf8;
+        --border-color: #475569; /* Borde un poco más visible */
+    }
+    body { 
+        background-color: var(--bg-body); 
+        color: var(--text-main); 
+        font-family: 'Segoe UI', sans-serif; 
+    }
+    .card-retiro { 
+        background-color: var(--bg-card); 
+        border: 1px solid var(--border-color); 
+        border-radius: 20px; 
+    }
+    /* Etiquetas del formulario más claras */
+    .form-label { 
+        color: var(--text-muted) !important; 
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    /* Inputs con mejor visibilidad */
+    .form-control, .form-select { 
+        background-color: #0f172a !important; 
+        border-color: var(--border-color) !important; 
+        color: #ffffff !important; 
+        padding: 0.75rem;
+    }
+    /* Color del texto que el usuario escribe */
+    .form-control::placeholder {
+        color: #64748b !important; /* Placeholder más visible */
+    }
+    .form-control:focus { 
+        border-color: var(--accent-primary) !important; 
+        box-shadow: 0 0 0 0.25rem rgba(56, 189, 248, 0.25); 
+    }
+    /* El enlace de volver arriba */
+    .volver-link {
+        color: var(--accent-primary) !important;
+        text-decoration: none;
+        font-weight: 500;
+        transition: 0.3s;
+    }
+    .volver-link:hover { opacity: 0.8; }
+</style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="text-center mb-4">
+                <a href="{{ url_for('home') }}" class="text-decoration-none text-muted small">
+                    <i class="fas fa-arrow-left"></i> Volver al Inicio
+                </a>
+            </div>
+            
+            <div class="card card-retiro shadow-lg p-4">
+                <h3 class="text-center fw-bold mb-4" style="color: var(--accent-primary);">
+                    <i class="fas fa-wallet"></i> Retirar Fondos
+                </h3>
+
+                <div class="alert alert-dark text-center border-secondary mb-4">
+                    <small class="text-muted d-block">Saldo Disponible</small>
+                    <span class="fs-4 fw-bold text-success">${{ "{:,.2f}".format(current_user.saldo) }}</span>
+                </div>
+
+                <form id="formRetiroAuto">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Monto a retirar ($)</label>
+                        <input type="number" id="monto" class="form-control" placeholder="Mínimo 10.00" min="10" step="0.01" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Banco Destino</label>
+                        <select id="banco" class="form-select" required>
+                            <option value="" disabled selected>Selecciona Banco</option>
+                            <option value="BANESCO">BANESCO</option>
+                            <option value="MERCANTIL">MERCANTIL</option>
+                            <option value="VENEZUELA">BANCO DE VENEZUELA</option>
+                            <option value="PROVINCIAL">PROVINCIAL</option>
+                            <option value="BNC">BNC</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Teléfono Pago Móvil</label>
+                        <input type="text" id="telefono" class="form-control" placeholder="Ej: 04241234567" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Cédula del Titular</label>
+                        <input type="text" id="cedula" class="form-control" placeholder="Solo números" required>
+                    </div>
+
+                    <button type="submit" id="btnEnviar" class="btn btn-primary w-100 fw-bold py-2 mt-3">
+                        <i class="fas fa-paper-plane me-2"></i>SOLICITAR PAGO AHORA
+                    </button>
+                </form>
+            </div>
+            <p class="text-center mt-4 text-muted small">
+                <i class="fas fa-info-circle"></i> Los retiros se procesan mediante la pasarela automática 24/7.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('formRetiroAuto').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnEnviar');
+    
+    const datos = {
+        monto: document.getElementById('monto').value,
+        banco: document.getElementById('banco').value,
+        telefono: document.getElementById('telefono').value,
+        cedula: document.getElementById('cedula').value
+    };
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Conectando con API Bancaria...';
+
+    fetch('/solicitar_retiro_auto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            alert("✅ " + data.message);
+            window.location.href = "{{ url_for('home') }}";
+        } else {
+            alert("❌ Error: " + data.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>SOLICITAR PAGO AHORA';
+        }
+    })
+    .catch(error => {
+        alert("Error de conexión");
+        btn.disabled = false;
+    });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEAPUESTOVIP.COM | Apuestas y Resultados</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+/* 1. Definición de colores mejorada */
+:root {
+    --bg-body: #020d1a;           
+    --bg-card: #1e293b;           
+    --bg-inner: #1a2233;           /* Fondo interno más nítido */
+    --text-main: #f8fafc;         
+    --text-muted: #94a3b8;        
+    --accent-primary: #38bdf8;    
+    --border-color: #334155;      
+    --voto-si: #4ed386;           
+    --voto-no: #ce5c5c;           
+}
+
+body { 
+    background-color: var(--bg-body); 
+    color: var(--text-main); 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    -webkit-font-smoothing: antialiased;
+}
+
+.hero-header { 
+    background: linear-gradient(135deg, #1e293b 0%, #1a2233 100%); 
+    border-bottom: 1px solid var(--border-color);
+    padding: 40px 0; 
+    margin-bottom: 30px; 
+}
+
+.mercado-card { 
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 20px; 
+    transition: transform 0.3s, box-shadow 0.3s; 
+    color: var(--text-main); 
+}
+
+.mercado-card:hover { 
+    transform: translateY(-5px); 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    border-color: var(--accent-primary) !important;
+}
+
+.mercado-card .card-title {
+    color: var(--text-main) !important; 
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3); 
+}
+
+/* Área de resultados con mejor contraste */
+.zona-progreso { 
+    background-color: var(--bg-inner) !important; 
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.mercado-card .text-success { color: var(--voto-si) !important; font-weight: bold; }
+.mercado-card .text-danger { color: var(--voto-no) !important; font-weight: bold; }
+.progress { background-color: #0f172a; height: 12px; border-radius: 10px; overflow: hidden; }
+.progress-bar.bg-success { background-color: var(--voto-si) !important; }
+.progress-bar.bg-danger { background-color: var(--voto-no) !important; }
+
+.mercado-card .btn-success { background-color: #166534 !important; border: none; font-weight: bold; }
+.mercado-card .btn-danger { background-color: #991b1b !important; border: none; font-weight: bold; }
+
+.input-group-text, .form-control {
+    background-color: #0f172a !important;
+    border-color: var(--border-color) !important;
+    color: white !important;
+}
+
+.badge.bg-primary {
+    background-color: var(--accent-primary) !important;
+    color: #020d1a;
+    font-weight: bold;
+}
+
+/* Estilo para la fecha de cierre resaltada */
+.fecha-cierre-box {
+    font-size: 0.85rem;
+    color: #fbbf24; /* Color ámbar para que resalte */
+    background: rgba(251, 191, 36, 0.1);
+    padding: 6px 12px;
+    border-radius: 10px;
+    display: inline-block;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.animalito-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 15px;
+}
+
+/* NUEVOS ESTILOS PARA CUOTAS */
+.badge-cuota {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-primary);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.estimado-texto {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 5px;
+    display: block;
+}
+.animalito-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        border-color: #28a745 !important;
+    }
+/* Contenedor con altura fija y scroll elegante */
+.cartilla-scroll-container {
+    background: var(--bg-inner);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    padding: 15px;
+    max-height: 450px; /* Evita que la página sea eterna hacia abajo */
+    overflow-y: auto;
+}
+
+/* La cuadrícula mágica */
+.grid-animalitos-layout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 columnas en móvil */
+    gap: 10px;
+}
+
+@media (min-width: 576px) {
+    .grid-animalitos-layout { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (min-width: 992px) {
+    .grid-animalitos-layout { grid-template-columns: repeat(6, 1fr); }
+}
+/* Contenedor optimizado para mayor densidad */
+.grid-animalitos-layout {
+    display: grid;
+    /* Forzamos más columnas en pantallas pequeñas para que quepan todos */
+    grid-template-columns: repeat(auto-fill, minmax(45px, 1fr)); 
+    gap: 4px; /* Espaciado mínimo entre botones */
+    padding: 5px;
+}
+
+/* Botón ultra-compacto */
+.btn-animalito-pro {
+    padding: 4px 2px !important; /* Reduce el espacio vertical y horizontal */
+    height: auto;
+    min-height: 50px; /* Altura suficiente para icono + número */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem; /* Texto un poco más pequeño para ahorrar espacio */
+}
+
+/* Ajuste del icono para que no empuje el borde */
+.btn-animalito-pro i {
+    font-size: 1.2rem !important;
+    margin-bottom: 2px;
+}
+/* Estilo del botón individual tipo "Cromo" */
+.btn-animalito-pro {
+    width: 100%;
+    aspect-ratio: 1 / 1; /* Cuadrados perfectos */
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.btn-animalito-pro:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-primary);
+    box-shadow: 0 5px 15px rgba(56, 189, 248, 0.2);
+}
+
+.btn-animalito-pro .num {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--accent-primary);
+    line-height: 1;
+}
+
+.btn-animalito-pro .name {
+    display: block;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+}
+
+/* Personalización del scrollbar para que no se vea feo */
+.cartilla-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+.cartilla-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+.cartilla-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
+}
+/* Mejora de visibilidad en el Modal de Recarga */
+#modalRecarga label {
+    color: #cbd5e1 !important; /* Gris claro para que se lea perfecto */
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+#modalRecarga .form-control::placeholder {
+    color: #64748b !important; /* Placeholder más visible */
+}
+/* --- EFECTO SOMBRA PARA ICONOS --- */
+
+/* Aseguramos que el botón sea el contenedor relativo */
+.btn-animalito-pro {
+    position: relative; /* Ya lo tenías, pero es vital */
+    overflow: hidden;   /* Para que el icono no se salga de las esquinas redondeadas */
+    z-index: 1;
+}
+
+.icon-sombra {
+    position: absolute;
+    right: -10px;       /* Lo sacamos un poco por la derecha */
+    bottom: -15px;      /* Lo sacamos un poco por abajo */
+    font-size: 3.8rem;  /* Tamaño grande para que cubra parte del fondo */
+    opacity: 0.08;      /* 8% de opacidad: casi invisible, muy elegante */
+    transform: rotate(-15deg); /* Inclinación para darle dinamismo */
+    z-index: 0;         /* Detrás de los textos (.num y .name) */
+    color: var(--text-main); /* Usamos tu variable de texto blanca */
+    pointer-events: none;    /* Para que no bloquee los clics al apostar */
+}
+
+/* Ajuste para que el texto resalte sobre la sombra */
+.btn-animalito-pro .num, 
+.btn-animalito-pro .name {
+    position: relative;
+    z-index: 2;
+}
+
+/* Efecto al pasar el mouse: el icono se aclara un poquito */
+.btn-animalito-pro:hover .icon-sombra {
+    opacity: 0.15;
+    transition: opacity 0.3s ease;
+}
+/* Contenedor principal de resultados */
+.resultados-scroll-container {
+    display: flex;
+    overflow-x: auto; /* Habilita el scroll horizontal */
+    overflow-y: hidden;
+    gap: 10px;
+    padding: 15px 10px;
+    white-space: nowrap;
+    scrollbar-width: thin; /* Para Firefox */
+    scrollbar-color: var(--voto-si) transparent;
+    -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+}
+
+/* Estilo de la barra de desplazamiento para Chrome/Edge/Safari */
+.resultados-scroll-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.resultados-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--voto-si); /* Usando el verde que ya tienes definido */
+    border-radius: 10px;
+}
+
+.resultados-scroll-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Asegura que cada item no se encoja */
+.resultado-item {
+    flex: 0 0 auto; 
+    width: 90px; /* Ajusta según el ancho actual de tus cuadros */
+}
+/* Estilo minimalista para la barra de scroll de resultados */
+.resultados-scroll-custom::-webkit-scrollbar {
+    height: 4px; /* Muy delgada para que sea discreta */
+}
+
+.resultados-scroll-custom::-webkit-scrollbar-thumb {
+    background-color: var(--accent-primary); /* Usa tu color azul/cian */
+    border-radius: 10px;
+}
+
+.resultados-scroll-custom::-webkit-scrollbar-track {
+    background: transparent;
+}
+/* Esto hará que la barra de scroll sea visible y fácil de identificar */
+div.overflow-auto::-webkit-scrollbar {
+    height: 8px; /* Altura de la barra horizontal */
+}
+
+div.overflow-auto::-webkit-scrollbar-thumb {
+    background: var(--accent-primary); /* El color de tu proyecto */
+    border-radius: 4px;
+}
+
+div.overflow-auto::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+</style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark bg-dark mb-0">
+    <div class="container justify-content-center">
+        {% if current_user.is_authenticated %}
+            <span class="text-white me-3"><i class="fas fa-user-circle"></i> {{ current_user.username }}</span>
+            
+            {% if not soy_admin %}
+                <span class="text-white me-3">
+                    Saldo: <strong id="user-saldo-val" class="text-success">${{ "{:,.2f}".format(current_user.saldo | default(0)) }}</strong>
+                </span>
+                
+                <button type="button" class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#modalRecarga">
+                    <i class="fas fa-plus-circle me-1"></i> Recargar
+                </button>
+                
+                <a href="{{ url_for('retirar') }}" class="btn btn-outline-danger btn-sm me-2">
+                    <i class="fas fa-university me-1"></i> Retirar
+                </a>
+                
+                <a href="{{ url_for('mi_historial') }}" class="btn btn-sm btn-outline-primary me-2">
+                    <i class="fas fa-dice me-1"></i> Mis Apuestas
+                </a>
+
+                <a href="{{ url_for('mis_transacciones') }}" class="btn btn-sm btn-outline-primary me-2">
+                    <i class="fas fa-history me-1"></i> Transacciones
+                </a>
+            {% endif %}
+            
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">Salir</a>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm me-2">Entrar</a>
+            <a href="{{ url_for('registro') }}" class="btn btn-outline-primary btn-sm">Registro</a>
+        {% endif %}
+        </div>
+    </nav>
+
+    {% block content %}
+    
+    <header class="hero-header text-center">
+        <div class="container">
+            <h1 class="display-5 fw-bold">TEAPUESTOVIP.COM</h1>
+            <p class="lead">Resultados y Predicciones en Tiempo Real</p>
+        </div>
+    </header>
+    <div class="container mt-2 mb-5">
+    <div class="zona-progreso p-3" style="border: 1px dashed var(--accent-primary);">
+        <h5 class="text-center mb-3 text-uppercase small fw-bold" style="color: var(--accent-primary);">
+            <i class="fas fa-history me-2"></i>Últimos Resultados
+        </h5>
+        <div class="d-flex flex-nowrap overflow-auto gap-3 pb-3 resultados-scroll-custom"
+            style="scrollbar-width: thin; -webkit-overflow-scrolling: touch;">
+            {% for res in resultados %}
+            <div class="text-center p-2 rounded shadow-sm" style="background: var(--bg-card); min-width: 100px; flex-shrink: 0; border: 1px solid var(--border-color); position: relative; overflow: hidden;">
+                
+                <i class="fas {{ obtener_icono(res.numero) }}" 
+                   style="position: absolute; right: -5px; bottom: -5px; font-size: 2.2rem; opacity: 0.12; color: var(--accent-primary); pointer-events: none; transform: rotate(-15deg);">
+                </i>
+
+                <div style="position: relative; z-index: 1;">
+                    <div style="font-size: 0.55rem; color: var(--accent-primary); font-weight: bold; margin-bottom: -2px;">
+                        {{ res.horario.strftime('%d/%m') }}
+                    </div>
+
+                    <div class="small" style="font-size: 0.7rem; color: #a0a0a0; margin-bottom: 2px;">
+                        {{ res.horario.strftime('%I:%M %p') }}
+                    </div>
+
+                    <div class="fw-bold text-success fs-4">{{ res.numero }}</div>
+                    <div class="small text-uppercase fw-bold" style="font-size: 0.6rem; color: var(--text-main);">
+                        {{ res.nombre_animal }}
+                    </div>
+                </div>
+                
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+    <div class="container mt-4">
+    <h2 class="text-center mb-4">🐾 Sorteos de Animalitos</h2>
+    
+    <div class="row">
+    {% for sorteo in sorteos_activos %}
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span>Sorteo #{{ sorteo.id }}</span>
+                <div class="d-flex align-items-center gap-2"> <div class="fw-bold">Hora: {{ sorteo.hora_formateada }}</div>
+        
+            {% if sorteo.segundos_restantes > 0 %}
+                <span class="badge bg-primary timer-badge" 
+                      id="timer-{{ sorteo.id }}" 
+                    data-seconds="{{ sorteo.segundos_restantes }}">
+                    Cierra en: --:--
+                </span>
+            {% else %}
+                <span class="badge bg-danger">CERRADO</span>
+            {% endif %}
+        </div>
+    </div>
+            
+            <div class="card-body">
+    {% if current_user.is_authenticated and soy_admin %}
+        <div class="text-center py-4">
+            <span class="badge bg-dark p-2">
+                <i class="fas fa-user-shield me-2"></i> MODO ADMINISTRADOR ACTIVO
+            </span>
+            <p class="text-muted mt-2 small">Las apuestas están inhabilitadas para esta cuenta.</p>
+        </div>
+    {% else %}
+        <div class="mb-3">
+            <label class="form-label fw-bold">1. Ingresa el monto:</label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" id="monto_{{ sorteo.id }}" class="form-control" {% if sorteo.segundos_restantes <= 0 %}disabled{% endif %}>
+            </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+    <div class="col-6">
+        <button onclick="enviarApuestaAnimalito({{ sorteo.id }}, 'PAR')" 
+                class="btn btn-outline-success w-100 btn-apuesta-{{ sorteo.id }}" 
+                {% if sorteo.segundos_restantes <= 0 %}disabled{% endif %}>
+            PAR
+            <span class="d-block" style="font-size: 0.7rem; font-weight: bold; opacity: 0.9;">Paga x1.95</span>
+        </button>
+    </div>
+    <div class="col-6">
+        <button onclick="enviarApuestaAnimalito({{ sorteo.id }}, 'IMPAR')" 
+                class="btn btn-outline-warning w-100 btn-apuesta-{{ sorteo.id }}" 
+                {% if sorteo.segundos_restantes <= 0 %}disabled{% endif %}>
+            IMPAR
+            <span class="d-block" style="font-size: 0.7rem; font-weight: bold; opacity: 0.9;">Paga x1.95</span>
+        </button>
+    </div>
+</div>
+
+        <div class="cartilla-scroll-container">
+            <div class="grid-animalitos-layout">
+    <div class="animal-item">
+        <button onclick="enviarApuestaAnimalito({{ sorteo.id }}, '0')" class="btn-animalito-pro btn-apuesta-{{ sorteo.id }}" {% if sorteo.segundos_restantes <= 0 %}disabled{% endif %}>
+            <i class="fas {{ obtener_icono('0') }} icon-sombra"></i>
+            <span class="num">0</span>
+            <span class="name">{{ animalitos_dict['0'] }}</span>
+        </button>
+    </div>
+
+    {% for i in range(1, 37) %}
+        {% set num_str = i|string %}
+        <div class="animal-item">
+            <button onclick="enviarApuestaAnimalito({{ sorteo.id }}, '{{ num_str }}')" class="btn-animalito-pro btn-apuesta-{{ sorteo.id }}" {% if sorteo.segundos_restantes <= 0 %}disabled{% endif %}>
+                <i class="fas {{ obtener_icono(num_str) }} icon-sombra"></i>
+                <span class="num">{{ i }}</span>
+                <span class="name">{{ animalitos_dict[num_str] }}</span>
+            </button>
+        </div>
+    {% endfor %}
+</div>
+        </div>
+    {% endif %}
+</div>
+        </div>
+    </div>
+    {% endfor %} </div>
+</div>
+
+<div class="modal fade" id="modalApuesta" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Apostar al <span id="modal-numero"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-center fw-bold text-uppercase" id="modal-nombre"></p>
+                <form id="formApuestaAnimal">
+                    <div class="mb-3">
+                        <label class="form-label">Monto a apostar ($):</label>
+                        <input type="number" id="monto_animal" class="form-control" placeholder="0.00" step="0.5" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sorteo disponible:</label>
+                        <select id="sorteo_id" class="form-select">
+                            {% for s in sorteos if s.estado == 'PROGRAMADO' %}
+                            <option value="{{ s.id }}">{{ s.horario.strftime('%H:%M') }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Confirmar Jugada</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <div class="row mb-5">
+            <div class="col-12 text-center mb-4">
+                <h3 class="fw-bold"><i class="fas fa-chart-line text-primary me-2"></i>Mercados Activos</h3>
+            </div>
+            
+            <div class="row justify-content-center g-4">
+                {% for item in mercados %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card mercado-card shadow-sm h-100 p-3">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <span class="badge bg-primary px-3 py-2 rounded-pill">Activo</span>
+                            </div>
+
+                            <h5 class="card-title mb-1">{{ item.pregunta }}</h5>
+
+                            <div class="mb-3">
+                                <span class="fecha-cierre-box">
+                                    <i class="far fa-clock me-1"></i> 
+                                    {% if item.fecha_cierre %}
+                                        Cierra: {{ item.fecha_cierre.strftime('%d/%m %I:%M %p') }}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha límite</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                            <div class="zona-progreso mb-4">
+                                <div class="d-flex justify-content-between small fw-bold mb-1">
+                                    <span class="text-success">SÍ {{ item.p_si }}% <span class="badge-cuota">{{ item.cuota_si }}x</span></span>
+                                    <span class="text-danger"><span class="badge-cuota">{{ item.cuota_no }}x</span> NO {{ item.p_no }}%</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" style="width: {{ item.p_si }}%"></div>
+                                    <div class="progress-bar bg-danger" style="width: {{ item.p_no }}%"></div>
+                                </div>
+                                <div class="text-center mt-2 small text-muted">Volumen Total: ${{ "{:,.2f}".format(item.total_si + item.total_no) }}</div>
+                            </div>
+
+                            <div class="mt-auto">
+                                {% if current_user.is_authenticated and not soy_admin %}
+                                <form onsubmit="return false;">
+                                    <input type="hidden" name="mercado_id" value="{{ item.id }}">
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="monto" id="input-monto-{{ item.id }}" 
+                                               class="form-control" placeholder="Monto" min="1" step="0.01" 
+                                               oninput="calcularPago({{ item.id }}, {{ item.cuota_si }}, {{ item.cuota_no }})" required>
+                                    </div>
+                                    
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <button type="button" onclick="enviarApuesta({{ item.id }}, 'SI')" class="btn btn-success w-100 fw-bold">Votar SÍ</button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" onclick="enviarApuesta({{ item.id }}, 'NO')" class="btn btn-danger w-100 fw-bold">Votar NO</button>
+                                        </div>
+                                    </div>
+
+                                    <span class="estimado-texto text-center">
+                                        Pago estimado (SÍ): <strong class="text-success">$<span id="pago-si-{{ item.id }}">0.00</span></strong> | 
+                                        (NO): <strong class="text-danger">$<span id="pago-no-{{ item.id }}">0.00</span></strong>
+                                    </span>
+                                </form>
+                                {% elif soy_admin %}
+                                <div class="alert alert-secondary text-center small py-2 mb-0">MODO ADMINISTRADOR</div>
+                                {% else %}
+                                <a href="{{ url_for('login') }}" class="btn btn-outline-primary w-100 fw-bold">Inicia sesión para jugar</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% if soy_admin %}
+    <div class="container text-center py-5">
+        <a href="{{ url_for('admin') }}" class="btn btn-dark px-5 py-3 rounded-pill fw-bold shadow"><i class="fas fa-cog me-2"></i>PANEL DE CONTROL</a>
+    </div>
+    {% endif %}
+
+    {% endblock %}
+    <footer class="text-center py-4 text-muted border-top mt-5">
+        <p class="mb-0 small">&copy; 2026 TEAPUESTOVIP.COM</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+    // --- FUNCIÓN UNIFICADA PARA ANIMALITOS (Botones rápidos) ---
+    function enviarApuestaAnimalito(idSorteo, opcion) {
+    const montoInput = document.getElementById('monto_' + idSorteo);
+    const montoVal = montoInput ? montoInput.value : null;
+
+    if (!montoVal || montoVal <= 0) {
+        alert("⚠️ Por favor ingresa un monto válido");
+        return;
+    }
+            
+    // 1. Verificamos si existe el elemento del saldo (seguridad para usuarios no logueados)
+    const saldoElem = document.getElementById('user-saldo-val');
+    if (!saldoElem) {
+        alert("❌ Debes iniciar sesión para realizar una apuesta.");
+        return;
+    }
+
+    // 2. Limpiamos el texto del saldo eliminando el símbolo '$' y comas para poder comparar números
+    const saldoActual = parseFloat(saldoElem.innerText.replace('$', '').replace(',', '')); 
+    
+    if (parseFloat(montoVal) > saldoActual) {
+        alert("❌ Saldo insuficiente para esta apuesta.");
+        return;
+    }
+
+    fetch('/apostar_animalito', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            sorteo_id: idSorteo,
+            animal: opcion, 
+            monto: montoVal
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            alert("✅ " + data.message);
+            location.reload(); 
+        } else {
+            alert("❌ Error: " + data.message);
+        }
+    })
+    .catch(error => alert("Error de conexión con el servidor"));
+}
+
+    // --- TU FUNCIÓN EXISTENTE PARA MERCADOS (SÍ/NO) ---
+    function enviarApuesta(mercadoId, opcion) {
+        const montoInput = document.getElementById('input-monto-' + mercadoId);
+        const monto = montoInput ? montoInput.value : null;
+
+        if (!monto || monto <= 0) {
+            alert("Por favor ingresa un monto válido.");
+            return;
+        }
+
+        fetch("{{ url_for('apostar_mercado') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                mercado_id: mercadoId,
+                monto: monto,
+                opcion: opcion
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                alert("✅ ¡Apuesta realizada!");
+                location.reload();
+            } else {
+                alert("❌ Error: " + data.message);
+            }
+        });
+    }
+
+    // --- FUNCIÓN PARA CÁLCULO DE GANANCIA EN TIEMPO REAL ---
+    function calcularPago(id, cuotaSi, cuotaNo) {
+        const montoInput = document.getElementById('input-monto-' + id);
+        const displaySi = document.getElementById('pago-si-' + id);
+        const displayNo = document.getElementById('pago-no-' + id);
+        
+        if (montoInput && montoInput.value > 0) {
+            const monto = montoInput.value;
+            displaySi.innerText = (monto * cuotaSi).toFixed(2);
+            displayNo.innerText = (monto * cuotaNo).toFixed(2);
+        }
+    }
+    // --- LÓGICA DEL CONTADOR REGRESIVO ---
+    function actualizarRelojes() {
+        const contadores = document.querySelectorAll('.timer-badge');
+        
+        contadores.forEach(nav => {
+            let seg = parseInt(nav.getAttribute('data-seconds'));
+            const idSorteo = nav.id.split('-')[1];
+            
+            if (seg > 0) {
+                seg--;
+                nav.setAttribute('data-seconds', seg);
+                
+                let m = Math.floor(seg / 60);
+                let s = seg % 60;
+                nav.innerText = `Cierra en: ${m}:${s < 10 ? '0' : ''}${s}`;
+            } else {
+                // Cuando llega a cero
+                nav.classList.remove('bg-primary');
+                nav.classList.add('bg-danger');
+                nav.innerText = "CERRADO";
+                
+                // Bloquear inputs y botones de este sorteo específico
+                const montoInput = document.getElementById('monto_' + idSorteo);
+                if(montoInput) montoInput.disabled = true;
+                
+                document.querySelectorAll('.btn-apuesta-' + idSorteo).forEach(btn => {
+                    btn.disabled = true;
+                });
+            }
+        });
+    }
+
+    // Iniciar el intervalo
+    setInterval(actualizarRelojes, 1000);
+    </script>
+<div class="modal fade" id="modalRecarga" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-0 bg-primary">
+                <h5 class="modal-title">Notificación de Pago</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 mb-4 rounded" style="background: #f8f9fa; color: #333;">
+                    <h6 class="fw-bold text-center border-bottom pb-2">DATOS DE TRANSFERENCIA / PAGO MÓVIL</h6>
+                    <div class="small mt-2">
+                        <p class="mb-1"><strong>Banco:</strong> BNC / Mercantil / Venezuela</p>
+                        <p class="mb-1"><strong>Nombre:</strong> TE APUESTO VIP 2026</p>
+                        <p class="mb-1"><strong>RIF:</strong> J-412936638</p>
+                        <p class="mb-1"><strong>Teléfono:</strong> 0424-5899131</p>
+                    </div>
+                </div>
+
+                <form id="formNotificarPago">
+                    <div class="mb-3">
+                        <label class="form-label small">Monto Pagado (Bs):</label>
+                        <input type="number" id="monto_pago" class="form-control" placeholder="Ej: 150.00" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Banco donde realizó el pago:</label>
+                        <select id="banco_destino" class="form-select">
+                            <option value="MERCANTIL">BANCO MERCANTIL</option>
+                            <option value="VENEZUELA">BANCO DE VENEZUELA</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Referencia (Últimos 6 dígitos):</label>
+                        <input type="text" id="ref_pago" class="form-control" placeholder="000000" maxlength="6" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Fecha:</label>
+                        <input type="date" id="fecha_pago" class="form-control" value="2026-04-07" required>
+                    </div>
+                    <button type="button" id="btnEnviarPago" onclick="procesarRecargaSimulada()" class="btn btn-primary w-100 fw-bold">
+                        VERIFICAR PAGO AHORA
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function procesarRecargaSimulada() {
+    const monto = document.getElementById('monto_pago').value;
+    const ref = document.getElementById('ref_pago').value;
+    const btn = document.getElementById('btnEnviarPago');
+
+    if (!monto || monto <= 0) {
+        alert("⚠️ Por favor ingresa un monto válido.");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+
+    const datos = {
+        user_id: {{ current_user.id | default(0) }},
+        monto: monto,
+        referencia: ref || "SIM-" + Math.floor(Math.random() * 1000000),
+        token: "VIP_TOKEN_2026_TEST" 
+    };
+
+    fetch('/webhook/pagos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert("✅ ¡Saldo acreditado con éxito!");
+            location.reload(); 
+        } else {
+            alert("❌ Error: " + data.message);
+            btn.disabled = false;
+            btn.innerHTML = 'VERIFICAR PAGO AHORA';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("Ocurrió un error al conectar con el webhook.");
+        btn.disabled = false;
+        btn.innerHTML = 'VERIFICAR PAGO AHORA';
+    });
+}
+</script>
+</body> 
+</html>
