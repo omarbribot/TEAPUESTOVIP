@@ -30,6 +30,13 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
+@app.route('/ejecutar-sorteo-secreto-xyz789')
+def ejecucion_forzada_externa():
+    try:
+        ejecutar_programacion_parrilla(datetime.now() + timedelta(days=1))
+        return {"status": "success", "message": "Parrilla de mañana generada"}, 200
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
 @app.context_processor
 def utility_processor():
     def obtener_icono(numero):
@@ -51,7 +58,7 @@ def ejecutar_giro_animalito(sorteo_id):
         # 1. Elegir ganador
         numero_ganador = random.choice(list(ANIMALITOS.keys()))
         nombre_ganador = ANIMALITOS[numero_ganador]
-        
+
         sorteo.numero = numero_ganador
         sorteo.nombre_animal = nombre_ganador
         sorteo.estado = 'FINALIZADO'
@@ -63,11 +70,11 @@ def ejecutar_giro_animalito(sorteo_id):
 
         # 3. Procesar todas las apuestas pendientes de este sorteo
         apuestas = ApuestaAnimalito.query.filter_by(sorteo_id=sorteo_id, estado='PENDIENTE').all()
-        
+
         for ap in apuestas:
             gano = False
             cuota = 0
-            
+
             if ap.animal_elegido == numero_ganador:
                 gano, cuota = True, 30
             elif ap.animal_elegido == 'PAR' and es_par:
@@ -80,7 +87,7 @@ def ejecutar_giro_animalito(sorteo_id):
                 ap.estado = 'GANADA'
                 ap.monto_ganado = premio
                 ap.usuario.saldo = round(ap.usuario.saldo + premio, 2)
-                
+
                 # ◄ AUDITORÍA: Registro de pago de premio (Animalitos)
                 mov_premio = Movimiento(
                     user_id=ap.usuario_id,
@@ -146,7 +153,7 @@ def home():
 
     return render_template('index.html',
                            mercados=mercados_db,
-                           sorteos_activos=sorteos_db,  
+                           sorteos_activos=sorteos_db,
                            soy_admin=es_admin,
                            apuestas_usuario=mis_apuestas,
                            animalitos_dict=ANIMALITOS,
@@ -162,24 +169,24 @@ def apostar_animalito():
         monto = float(data.get('monto', 0))
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Monto no válido'}), 400
-    
+
     config = Configuracion.query.first()
     if config:
         if monto < config.animalitos_min:
             return jsonify({
-                'status': 'error', 
+                'status': 'error',
                 'message': f'El monto mínimo para apostar es {config.animalitos_min:,.2f}'
             }), 400
-            
+
         if monto > config.animalitos_max:
             return jsonify({
-                'status': 'error', 
+                'status': 'error',
                 'message': f'El monto máximo permitido por apuesta es {config.animalitos_max:,.2f}'
             }), 400
 
     if monto <= 0 or current_user.saldo < monto:
         return jsonify({'status': 'error', 'message': 'Saldo insuficiente o monto inválido'}), 400
-    
+
     sorteo = db.session.get(Sorteo, sorteo_id)
     if sorteo:
         ahora = datetime.now()
@@ -233,28 +240,28 @@ def apostar_mercado():
         monto = float(data.get('monto', 0))
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Monto no válido'}), 400
-        
+
     config = Configuracion.query.first()
     if config:
         if monto < config.mercados_min:
             return jsonify({
-                'status': 'error', 
+                'status': 'error',
                 'message': f'La apuesta mínima en predicciones es de {config.mercados_min:,.2f}'
             }), 400
-            
+
         if monto > config.mercados_max:
             return jsonify({
-                'status': 'error', 
+                'status': 'error',
                 'message': f'La apuesta máxima permitida en predicciones es de {config.mercados_max:,.2f}'
             }), 400
 
     if monto <= 0 or current_user.saldo < monto:
         return jsonify({'status': 'error', 'message': 'Saldo insuficiente'}), 400
-    
+
     mercado = db.session.get(Market := Mercado, mercado_id)
     if not mercado or mercado.estado != 'Abierto':
         return jsonify({'status': 'error', 'message': 'Mercado cerrado'}), 400
-    
+
     try:
         current_user.saldo = round(current_user.saldo - monto, 2)
         nueva_apuesta = ApuestaMercado(
@@ -281,7 +288,7 @@ def apostar_mercado():
         db.session.commit()
         return jsonify({
             'status': 'success',
-            'message': '¡Apuesta procesada!', 
+            'message': '¡Apuesta procesada!',
             'nuevo_saldo': f"{current_user.saldo:,.2f}"
         })
     except Exception as e:
@@ -292,7 +299,7 @@ def apostar_mercado():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        identificador = request.form.get('username') 
+        identificador = request.form.get('username')
         password = request.form.get('password')
         user = Usuario.query.filter((Usuario.username == identificador) | (Usuario.email == identificador)).first()
         if user and user.check_password(password):
@@ -365,15 +372,15 @@ def admin():
 
     page_sorteos = request.args.get('page_sorteos', 1, type=int)
     paginacion_sorteos = Sorteo.query.order_by(Sorteo.horario.desc()).paginate(page=page_sorteos, per_page=10, error_out=False)
-    
+
     page_historial = request.args.get('page_historial', 1, type=int)
     paginacion_historial = Mercado.query.filter_by(estado='Cerrado')\
                                          .order_by(Mercado.fecha_cierre.desc())\
                                          .paginate(page=page_historial, per_page=10, error_out=False)
-    
+
     count_animalitos = ApuestaAnimalito.query.count()
     count_mercados = ApuestaMercado.query.count()
-    
+
     mercados_db = Mercado.query.filter_by(estado='Abierto').all()
     mercados_stats = []
     for m in mercados_db:
@@ -388,7 +395,7 @@ def admin():
 
     total_apostado = (db.session.query(func.sum(ApuestaAnimalito.monto)).scalar() or 0) + (db.session.query(func.sum(ApuestaMercado.monto)).scalar() or 0)
     total_premios = (db.session.query(func.sum(ApuestaAnimalito.monto_ganado)).scalar() or 0) + (db.session.query(func.sum(ApuestaMercado.monto_ganado)).scalar() or 0)
-    
+
     config = Configuracion.query.first()
     if not config:
         config = Configuracion(animalitos_min=1.0, animalitos_max=500.0, mercados_min=5.0, mercados_max=1000.0)
@@ -396,7 +403,7 @@ def admin():
         db.session.commit()
 
     return render_template('admin.html',
-                           sorteos=paginacion_sorteos.items, 
+                           sorteos=paginacion_sorteos.items,
                            paginacion_sorteos=paginacion_sorteos,
                            usuarios=paginacion_usuarios.items,
                            paginacion=paginacion_usuarios,
@@ -451,7 +458,7 @@ def resolver_mercado(id, resultado):
                 db.session.add(mov_premio_m)
             else:
                 ap.estado = 'PERDIDA'
-                
+
         admin_user = Usuario.query.filter_by(username='omarbri').first()
         if admin_user: admin_user.saldo = round(admin_user.saldo + mercado.comision_casa, 2)
         db.session.commit()
@@ -469,7 +476,7 @@ def recargar_saldo():
     if usuario:
         monto = float(request.form.get('monto', 0))
         usuario.saldo = round(usuario.saldo + monto, 2)
-        
+
         # ◄ AUDITORÍA: Registro de recarga manual por el Administrador
         mov_manual = Movimiento(
             user_id=usuario.id,
@@ -531,15 +538,15 @@ def revisar_sorteos_pasados():
 def ejecutar_programacion_parrilla(fecha_destino):
     fecha_str = fecha_destino.strftime('%Y-%m-%d')
     horas_sorteos = [
-        '09:00', '10:00', '11:00', '12:00', 
-        '13:00', '14:00', '15:00', '16:00', 
+        '09:00', '10:00', '11:00', '12:00',
+        '13:00', '14:00', '15:00', '16:00',
         '17:00', '18:00', '19:00'
     ]
     sorteos_creados = 0
 
     for hora in horas_sorteos:
         fecha_hora_combinada = datetime.strptime(f"{fecha_str} {hora}", "%Y-%m-%d %H:%M")
-        
+
         if fecha_hora_combinada < datetime.now():
             continue
 
@@ -554,16 +561,16 @@ def ejecutar_programacion_parrilla(fecha_destino):
         try:
             db.session.commit()
             print(f"✅ [Piloto] ¡Éxito! Se programaron {sorteos_creados} sorteos automáticamente para el día {fecha_str}.")
-            
+
             inicio_dia = datetime.strptime(f"{fecha_str} 00:00", "%Y-%m-%d %H:%M")
             sorteos_nuevos = Sorteo.query.filter(Sorteo.horario >= inicio_dia).all()
             for s in sorteos_nuevos:
                 if not scheduler.get_job(f'sorteo_{s.id}'):
                     scheduler.add_job(
-                        id=f'sorteo_{s.id}', 
-                        func=ejecutar_giro_animalito, 
-                        trigger='date', 
-                        run_date=s.horario, 
+                        id=f'sorteo_{s.id}',
+                        func=ejecutar_giro_animalito,
+                        trigger='date',
+                        run_date=s.horario,
                         args=[s.id]
                     )
         except Exception as e:
@@ -588,12 +595,12 @@ def generar_cronograma_diario():
 def detalle_sorteo_animalito(sorteo_id):
     apuestas = ApuestaAnimalito.query.filter_by(sorteo_id=sorteo_id).all()
     resultado = [{
-        'username': ap.usuario.username, 
-        'animal_elegido': f"{ap.animal_elegido} - {ANIMALITOS.get(ap.animal_elegido, 'S/N')}", 
-        'monto': ap.monto, 
+        'username': ap.usuario.username,
+        'animal_elegido': f"{ap.animal_elegido} - {ANIMALITOS.get(ap.animal_elegido, 'S/N')}",
+        'monto': ap.monto,
         'estado': ap.estado
     } for ap in apuestas]
-    
+
     return jsonify({
         'status': 'success',
         'apuestas': resultado
@@ -631,7 +638,7 @@ with app.app_context():
 @app.route('/actualizar_limites', methods=['POST'])
 @login_required
 def actualizar_limites():
-    if current_user.username != 'omarbri': 
+    if current_user.username != 'omarbri':
         return "Acceso denegado", 403
 
     config = Configuracion.query.first()
@@ -640,16 +647,16 @@ def actualizar_limites():
         config.animalitos_max = float(request.form.get('a_max', 500.0))
         config.mercados_min = float(request.form.get('m_min', 5.0))
         config.mercados_max = float(request.form.get('m_max', 1000.0))
-        
+
         db.session.commit()
         return redirect(url_for('admin'))
-    
+
     return "Error al cargar configuración", 500
 
 @app.route('/admin/configuracion', methods=['GET', 'POST'])
 @login_required
 def gestionar_configuracion():
-    if current_user.username != 'omarbri': 
+    if current_user.username != 'omarbri':
         return "No autorizado", 403
 
     config = db.session.get(Configuracion, 1)
@@ -661,21 +668,22 @@ def gestionar_configuracion():
     if request.method == 'POST':
         datos = request.get_json()
         nuevo_estado = datos.get('activo', False)
-        
+
         config.piloto_automatico = nuevo_estado
         db.session.commit()
-        
+
         if nuevo_estado == True:
             print("[Piloto] Botón encendido manualmente. Verificando parrilla de HOY...")
             ejecutar_programacion_parrilla(datetime.now().date())
 
         estado_txt = "ACTIVADO" if nuevo_estado else "DESACTIVADO"
         return jsonify({
-            "status": "success", 
+            "status": "success",
             "mensaje": f"Piloto automático {estado_txt} con éxito y verificado."
         })
 
     return render_template('admin.html', config=config)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
