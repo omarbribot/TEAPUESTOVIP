@@ -9,6 +9,15 @@ import uuid
 import time
 from constantes import ANIMALITOS, ICONOS_ANIMALITOS
 from flask_apscheduler import APScheduler
+import pytz
+
+# Zona horaria oficial de Venezuela
+TZ_VENEZUELA = pytz.timezone('America/Caracas')
+
+# Función helper para obtener siempre la hora real de Venezuela sin zona horaria adjunta (naive)
+# Esto garantiza que SQLAlchemy y SQLite la comparen perfectamente en las consultas
+def get_hora_ve():
+    return datetime.now(TZ_VENEZUELA).replace(tzinfo=None)
 
 # 1. CONFIGURACIÓN INICIAL
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -122,7 +131,7 @@ def mock_api_pago_movil(telefono, cedula, banco, monto):
 # --- RUTAS DE USUARIO ---
 @app.route('/')
 def home():
-    ahora = datetime.now()
+    ahora = get_hora_ve()
     sorteos_db = Sorteo.query.filter(Sorteo.estado != 'FINALIZADO').order_by(Sorteo.horario.asc()).all()
 
     for s in sorteos_db:
@@ -189,7 +198,7 @@ def apostar_animalito():
 
     sorteo = db.session.get(Sorteo, sorteo_id)
     if sorteo:
-        ahora = datetime.now()
+        ahora = get_hora_ve()
         segundos_restantes = (sorteo.horario - ahora).total_seconds()
         if segundos_restantes < 120:
             return jsonify({'status': 'error', 'message': 'Sorteo cerrado.'}), 400
@@ -529,7 +538,7 @@ def solicitar_retiro_auto():
 @scheduler.task('interval', id='revisar_pendientes', seconds=60)
 def revisar_sorteos_pasados():
     with app.app_context():
-        pendientes = Sorteo.query.filter(Sorteo.horario <= datetime.now(), Sorteo.estado != 'FINALIZADO').all()
+        pendientes = Sorteo.query.filter(Sorteo.horario <= get_hora_ve(), Sorteo.estado != 'FINALIZADO').all()
         for s in pendientes: ejecutar_giro_animalito(s.id)
 
 # =====================================================================
@@ -547,7 +556,7 @@ def ejecutar_programacion_parrilla(fecha_destino):
     for hora in horas_sorteos:
         fecha_hora_combinada = datetime.strptime(f"{fecha_str} {hora}", "%Y-%m-%d %H:%M")
 
-        if fecha_hora_combinada < datetime.now():
+        if fecha_hora_combinada < get_hora_ve():
             continue
 
         existe = Sorteo.query.filter_by(horario=fecha_hora_combinada).first()
@@ -633,7 +642,7 @@ with app.app_context():
     config = Configuracion.query.first()
     if config and config.piloto_automatico:
         print("🤖 [Sistema] Verificando parrilla de sorteos para HOY tras reinicio del servidor...")
-        hoy = datetime.now().date()
+        hoy = get_hora_ve().date()
         ejecutar_programacion_parrilla(hoy)
 @app.route('/actualizar_limites', methods=['POST'])
 @login_required
@@ -674,7 +683,7 @@ def gestionar_configuracion():
 
         if nuevo_estado == True:
             print("[Piloto] Botón encendido manualmente. Verificando parrilla de HOY...")
-            ejecutar_programacion_parrilla(datetime.now().date())
+            ejecutar_programacion_parrilla(get_hora_ve().date())
 
         estado_txt = "ACTIVADO" if nuevo_estado else "DESACTIVADO"
         return jsonify({

@@ -651,8 +651,8 @@
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             function refrescarSorteosAutomatico() {
-                // Conserva exactamente la URL (e incluyendo el número de página actual en la que estés)
-                const urlActual = window.location.href;
+                // ◄ CAMBIO AQUÍ: Capturamos la URL exacta que tiene el navegador en el SEGUNDO EXACTO del refresco
+                const urlActual = window.location.href; 
 
                 fetch(urlActual)
                     .then(response => response.text())
@@ -666,7 +666,7 @@
                         if (contenedorViejo && contenedorNuevo) {
                             // Intercambia el contenido de la tarjeta en absoluto silencio 
                             contenedorViejo.innerHTML = contenedorNuevo.innerHTML;
-                            console.log("🔄 [Auto-Refresco] Tabla de sorteos actualizada.");
+                            console.log("🔄 [Auto-Refresco] Tabla de sorteos actualizada en caliente.");
                         }
                     })
                     .catch(error => console.error("Error en el auto-refresco de sorteos:", error));
