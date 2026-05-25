@@ -640,6 +640,7 @@
                             
                             if (nuevoPanel) {
                                 panelPrincipal.innerHTML = nuevoPanel.innerHTML;
+                                history.pushState({}, '', url);
                             }
                         })
                         .catch(error => console.error("Error en la paginación AJAX global:", error));
@@ -650,31 +651,30 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            function refrescarSorteosAutomatico() {
-                // ◄ CAMBIO AQUÍ: Capturamos la URL exacta que tiene el navegador en el SEGUNDO EXACTO del refresco
-                const urlActual = window.location.href; 
+    function refrescarSorteosAutomatico() {
+    // 1. Lee con precisión la página real desde la URL modificada por el pushState
+    const parametrosURL = new URLSearchParams(window.location.search);
+    let paginaActual = parametrosURL.get('page') || 1;
 
-                fetch(urlActual)
-                    .then(response => response.text())
-                    .then(html => {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, "text/html");
-                        
-                        const contenedorViejo = document.getElementById("contenedor-tabla-sorteos");
-                        const contenedorNuevo = doc.getElementById("contenedor-tabla-sorteos");
-                        
-                        if (contenedorViejo && contenedorNuevo) {
-                            // Intercambia el contenido de la tarjeta en absoluto silencio 
-                            contenedorViejo.innerHTML = contenedorNuevo.innerHTML;
-                            console.log("🔄 [Auto-Refresco] Tabla de sorteos actualizada en caliente.");
-                        }
-                    })
-                    .catch(error => console.error("Error en el auto-refresco de sorteos:", error));
+    // 2. Construye la consulta exacta para Flask
+    const urlConPagina = `${window.location.pathname}?page=${paginaActual}`;
+
+    fetch(urlConPagina)
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+            
+            const contenedorViejo = document.getElementById("contenedor-tabla-sorteos");
+            const contenedorNuevo = doc.getElementById("contenedor-tabla-sorteos");
+            
+            if (contenedorViejo && contenedorNuevo) {
+                contenedorViejo.innerHTML = contenedorNuevo.innerHTML;
+                console.log(`✅ [Auto-Refresco] Sorteos sincronizados en la página ${paginaActual}`);
             }
-
-            // Consulta cambios silenciosamente en segundo plano cada 30 segundos
-            setInterval(refrescarSorteosAutomatico, 30000);
-        });
+        })
+        .catch(error => console.error("Error en el auto-refresco de sorteos:", error));
+}
     </script>
 </body>
 </html>
