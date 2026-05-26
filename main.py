@@ -828,6 +828,23 @@ def gestionar_configuracion():
 
     return render_template('admin.html', config=config)
 
+@app.route('/detalle_mercado_apuestas/<int:mercado_id>')
+@login_required
+def detalle_mercado_apuestas(mercado_id):
+    if current_user.username != 'omarbri': 
+        return jsonify({'status': 'error', 'message': 'No autorizado'}), 403
+        
+    apuestas = ApuestaMercado.query.filter_by(mercado_id=mercado_id).all()
+    resultado = [{
+        'username': ap.usuario.username,
+        'opcion_elegida': ap.opcion_elegida,
+        'monto': ap.monto,
+        'estado': ap.estado
+    } for ap in apuestas]
 
+    return jsonify({
+        'status': 'success',
+        'apuestas': resultado
+    })
 if __name__ == '__main__':
     app.run(debug=True)

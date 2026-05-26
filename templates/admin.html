@@ -325,6 +325,86 @@
                 </table>
             </div>
         </div>
+    <div class="card shadow mb-4" id="historial-seccion">
+            <div class="card-header py-3 bg-secondary text-white">
+                <h6 class="m-0 font-weight-bold"><i class="fas fa-history"></i> Historial de Mercados Resueltos</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped" width="100%" cellspacing="0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha Cierre</th>
+                                <th>Pregunta / Mercado</th>
+                                <th class="text-center">Resultado Final</th>
+                                <th>Total Apostado</th>
+                                <th>Detalles</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mercado in mercados_historial %}
+                            <tr>
+                                <td><strong>#{{ mercado.id }}</strong></td>
+                                <td>{{ mercado.fecha_cierre.strftime('%d/%m/%Y %I:%M %p') if mercado.fecha_cierre else 'S/F' }}</td>
+                                <td>{{ mercado.pregunta }}</td>
+                                <td class="text-center">
+                                    {% set res = mercado.resultado_final|upper|replace('Í', 'I')|trim %}
+                                    {% if res == 'SI' %}
+                                    <span class="badge bg-success text-white px-3 py-2" style="font-weight: bold; font-size: 0.9rem; min-width: 60px; display: inline-block;">SÍ</span>
+                                    {% elif res == 'NO' %}
+                                    <span class="badge bg-danger text-white px-3 py-2" style="font-weight: bold; font-size: 0.9rem; min-width: 60px; display: inline-block;">NO</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark px-3 py-2" style="font-weight: bold; font-size: 0.9rem;">{{ mercado.resultado_final }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="text-success font-weight-bold">
+                                        {{ "{:,.2f}".format(mercado.total_si + mercado.total_no) }} Bs
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-info btn-sm text-white" onclick="verDetalleMercado({{ mercado.id }}, `{{ mercado.pregunta }}`)">
+                                        <i class="fas fa-eye"></i> Ver Apuestas
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">No hay mercados resueltos en el historial.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if paginacion_historial and paginacion_historial.pages > 1 %}
+                <nav aria-label="Paginacion historial">
+                    <ul class="pagination justify-content-center mt-3">
+                        {% if paginacion_historial.has_prev %}
+                        <li class="page-item">
+                            <button class="page-link" onclick="cambiarPaginaHistorial({{ paginacion_historial.prev_num }})">Anterior</button>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                        {% endif %}
+
+                        <li class="page-item disabled">
+                            <span class="page-link text-dark">Página {{ paginacion_historial.page }} de {{ paginacion_historial.pages }}</span>
+                        </li>
+
+                        {% if paginacion_historial.has_next %}
+                        <li class="page-item">
+                            <button class="page-link" onclick="cambiarPaginaHistorial({{ paginacion_historial.next_num }})">Siguiente</button>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
 
         <div class="section">
             <div class="section-title"><i class="fa-solid fa-list-check text-secondary"></i>Monitoreo y Auditoría de Sorteos (Parrilla del Día)</div>
@@ -472,7 +552,35 @@
             </div>
         </div>
     </div>
-
+<div class="modal fade" id="modalDetalleMercado" tabindex="-1" aria-labelledby="modalMercadoTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="modalMercadoTitulo">Apuestas del Mercado</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped" width="100%" cellspacing="0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Opción Elegida</th>
+                                <th>Monto Apostado</th>
+                                <th>Estatus del Premio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalMercadoCuerpo">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar Auditoría</button>
+            </div>
+        </div>
+    </div>
+</div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
@@ -610,6 +718,89 @@
             // Sincronización automática de ruletas cada 15 segundos sin interrumpir clics
             setInterval(refrescarSorteosAutomatico, 15000);
         });
+
+    function verDetalleMercado(mercadoId, pregunta) {
+    // Cambiar el título del modal con la pregunta del mercado
+    document.getElementById('modalMercadoTitulo').innerText = "Apuestas: " + pregunta;
+    
+    // Limpiar la tabla interna del modal antes de cargar
+    const tablaCuerpo = document.getElementById('modalMercadoCuerpo');
+    tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando apuestas...</td></tr>';
+    
+    // Inicializar y abrir el modal usando la API nativa de Bootstrap 5 (Sin usar jQuery $)
+    var myModal = new bootstrap.Modal(document.getElementById('modalDetalleMercado'));
+    myModal.show();
+
+    // Buscar los datos reales mediante fetch
+    fetch('/detalle_mercado_apuestas/' + mercadoId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.apuestas.length > 0) {
+                tablaCuerpo.innerHTML = '';
+                data.apuestas.forEach(ap => {
+                    let badgeEstado = '';
+                    if (ap.estado === 'GANADA') {
+                        badgeEstado = '<span class="badge bg-success text-white">Ganó</span>';
+                    } else if (ap.estado === 'PERDIDA') {
+                        badgeEstado = '<span class="badge bg-danger text-white">Perdió</span>';
+                    } else {
+                        badgeEstado = '<span class="badge bg-warning text-dark">Pendiente</span>';
+                    }
+                    
+                    let opcionBadge = ap.opcion_elegida === 'SI' ? '<span class="badge bg-success text-white px-2">SÍ</span>' : '<span class="badge bg-danger text-white px-2">NO</span>';
+                    
+                    tablaCuerpo.innerHTML += `
+                        <tr>
+                            <td><strong>${ap.username}</strong></td>
+                            <td>${opcionBadge}</td>
+                            <td><span class="font-weight-bold text-dark">${parseFloat(ap.monto).toFixed(2)} Bs</span></td>
+                            <td>${badgeEstado}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Ningún usuario apostó en este mercado.</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3"><i class="fas fa-exclamation-triangle"></i> Error al cargar la auditoría.</td></tr>';
+        });
+} 
+    function cambiarPaginaHistorial(numeroPagina) {
+    // 1. Buscamos el contenedor de la tabla para cambiar su contenido mediante fetch
+    const tbody = document.getElementById('historial-seccion').querySelector('tbody');
+    const paginationContainer = document.getElementById('historial-seccion').querySelector('nav');
+    
+    // Opcional: mostrar un estado visual de carga rápido en la tabla
+    tbody.style.opacity = '0.5';
+
+    // 2. Hacemos la petición a la misma ruta de administración pero pidiendo la página por AJAX
+    fetch('?page_historial=' + numeroPagina)
+        .then(response => response.text())
+        .then(html => {
+            // Creamos un documento temporal para parsear el HTML recibido
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Extraemos la nueva tabla y la nueva paginación correspondientes a esa página
+            const nuevoTbody = doc.getElementById('historial-seccion').querySelector('tbody');
+            const nuevaPaginacion = doc.getElementById('historial-seccion').querySelector('nav');
+            
+            // Inyectamos el nuevo contenido de forma limpia y transparente
+            tbody.innerHTML = nuevoTbody.innerHTML;
+            if (paginationContainer && nuevaPaginacion) {
+                paginationContainer.innerHTML = nuevaPaginacion.innerHTML;
+            }
+            
+            // Restauramos la opacidad
+            tbody.style.opacity = '1';
+        })
+        .catch(error => {
+            console.error("Error al paginar el historial:", error);
+            tbody.style.opacity = '1';
+        });
+}
     </script>
 </body>
 </html>
