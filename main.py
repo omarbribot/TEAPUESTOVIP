@@ -27,7 +27,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'in
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 2. IMPORTAMOS DB Y LOS MODELOS
-from models import db, Usuario, Sorteo, Mercado, ApuestaMercado, ApuestaAnimalito, Movimiento, Configuracion
+# ◄ MODIFICACIÓN: Incluimos SesionCaja
+from models import db, Usuario, Sorteo, Mercado, ApuestaMercado, ApuestaAnimalito, Movimiento, Configuracion, SesionCaja
 
 # 3. INICIALIZAMOS COMPONENTES
 db.init_app(app)
@@ -46,6 +47,7 @@ def ejecucion_forzada_externa():
         return {"status": "success", "message": "Parrilla de mañana generada"}, 200
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
+
 @app.context_processor
 def utility_processor():
     def obtener_icono(numero):
@@ -411,6 +413,15 @@ def admin():
         db.session.add(config)
         db.session.commit()
 
+    # ◄ NUEVA LÓGICA DE CONTROL DE CAJA Y ALERTA CRÍTICA (40%)
+    alerta_critica = False
+    if config.fondo_semilla_optimo > 0:
+        if config.caja_real_disponible < (config.fondo_semilla_optimo * 0.40):
+            alerta_critica = True
+
+    # Obtenemos el historial de las últimas 10 sesiones de caja para la auditoría visual
+    sesiones_caja_historico = SesionCaja.query.order_by(SesionCaja.fecha_apertura.desc()).limit(10).all()
+
     return render_template('admin.html',
                            sorteos=paginacion_sorteos.items,
                            paginacion_sorteos=paginacion_sorteos,
@@ -423,6 +434,8 @@ def admin():
                            ganancia_casa=total_apostado - total_premios,
                            total_apuestas=count_animalitos + count_mercados,
                            config=config,
+                           alerta_critica=alerta_critica,
+                           sesiones_caja=sesiones_caja_historico,
                            now=datetime.now())
 
 @app.route('/programar_sorteo', methods=['POST'])
@@ -542,7 +555,7 @@ def revisar_sorteos_pasados():
         for s in pendientes: ejecutar_giro_animalito(s.id)
 
 # =====================================================================
-# 🚀 NUEVA RUTINA: PILOTO AUTOMÁTICO (MODULARIZADA)
+# 🚀 ROUTINE: PILOTO AUTOMÁTICO (MODULARIZADA)
 # =====================================================================
 def ejecutar_programacion_parrilla(fecha_destino):
     fecha_str = fecha_destino.strftime('%Y-%m-%d')
@@ -600,6 +613,127 @@ def generar_cronograma_diario():
         manana = datetime.now() + timedelta(days=1)
         ejecutar_programacion_parrilla(manana.date())
 
+
+# =====================================================================
+# 📊 NUEVA LÓGICA CORE: CONTROL DE CAJA Y FÓRMULAS DIARIAS
+# =====================================================================
+def ejecutar_cierre_procesamiento_caja(monto_declarado_manual=None):
+    """
+    Procesa las fórmulas financieras del negocio basadas estrictamente en Bolívares (Bs)
+    Fórmula: Ganancia Real Diaria = (Ventas Animalitos - Premios Animalitos) + Comisión Mercados (5%)
+    """
+    ahora = get_hora_ve()
+    inicio_dia = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    config = Configuracion.query.first()
+    if not config:
+        return False
+
+    # 1. Calcular Ventas del Día (Animalitos)
+    ventas_animalitos = db.session.query(func.sum(ApuestaAnimalito.monto))\
+        .filter(ApuestaAnimalito.fecha >= inicio_dia).scalar() or 0.0
+
+    # 2. Calcular Premios del Día (Animalitos)
+    premios_animalitos = db.session.query(func.sum(ApuestaAnimalito.monto_ganado))\
+        .filter(ApuestaAnimalito.fecha >= inicio_dia, ApuestaAnimalito.estado == 'GANADA').scalar() or 0.0
+
+    # 3. Calcular Comisión de Mercados del Día (5%)
+    comision_mercados = 0.0
+    mercados_cerrados_hoy = Mercado.query.filter(Mercado.fecha_cierre >= inicio_dia, Mercado.estado == 'Cerrado').all()
+    for m in mercados_cerrados_hoy:
+        comision_mercados += m.comision_casa
+
+    # Aplicación de Fórmula Financiera Aprobada
+    ganancia_real_diaria = (ventas_animalitos - premios_animalitos) + comision_mercados
+
+    # Calcular monto que debería registrar el sistema basándose en la caja anterior y el flujo neto
+    monto_apertura_hoy = config.caja_real_disponible
+    monto_calculado_sistema = monto_apertura_hoy + ganancia_real_diaria
+
+    # Definir el monto de cierre real (Si es automático por cron toma el del sistema, si es manual usa el del admin)
+    monto_real_final = monto_declarado_manual if monto_declarado_manual is not None else monto_calculado_sistema
+    discrepancia_calculada = monto_real_final - monto_calculado_sistema
+
+    # Determinar estado de la auditoría
+    estado_sesion = 'Cerrada'
+    if discrepancia_calculada < 0:
+        estado_sesion = 'Cerrada con Déficit'
+    elif discrepancia_calculada > 0:
+        estado_sesion = 'Cerrada con Superávit'
+
+    # Guardar histórico de auditoría en SesionCaja
+    nueva_sesion = SesionCaja(
+        fecha_apertura=inicio_dia,
+        fecha_cierre=ahora,
+        monto_apertura_bs=monto_apertura_hoy,
+        monto_cierre_sistema=monto_calculado_sistema,
+        monto_cierre_real=monto_real_final,
+        discrepancy=discrepancia_calculada,
+        estado=estado_sesion
+    )
+    db.session.add(nueva_sesion)
+
+    # Regla de Negocio 1 (Fondo Semilla Intocable)
+    if monto_real_final >= config.fondo_semilla_optimo:
+        # Si hay ganancia o está cuadrado exacto, el excedente va a utilidades y la caja abre limpia con el fondo óptimo
+        config.caja_real_disponible = config.fondo_semilla_optimo
+    else:
+        # Si hay pérdida y no llega al fondo óptimo, abre disminuida reflejando el déficit directo
+        config.caja_real_disponible = monto_real_final
+
+    try:
+        db.session.commit()
+        print(f"📊 [Caja] Sesión Guardada de forma exitosa. Estado: {estado_sesion}, Caja operativa: {config.caja_real_disponible} Bs.")
+        return True
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ [Caja] Error al procesar el cierre financiero: {e}")
+        return False
+
+# Regla 3: Cierre Híbrido Automático a las 11:59 PM vía Flask-APScheduler
+@scheduler.task('cron', id='cierre_automatico_caja_cron', hour=23, minute=59)
+def cierre_automatico_caja_cron():
+    with app.app_context():
+        print("🕒 [Caja] Ejecutando cierre de caja automatizado de las 11:59 PM...")
+        ejecutar_cierre_procesamiento_caja()
+
+
+# --- NUEVAS RUTAS DE CAJA (PANEL ADMINISTRADOR) ---
+@app.route('/admin/cierre_manual_caja', methods=['POST'])
+@login_required
+def cierre_manual_caja():
+    if current_user.username != 'omarbri': 
+        return "No autorizado", 403
+    
+    try:
+        monto_real = float(request.form.get('monto_cierre_real', 0.0))
+    except (ValueError, TypeError):
+        flash("Monto real declarado no es válido.")
+        return redirect(url_for('admin'))
+
+    exito = ejecutar_cierre_procesamiento_caja(monto_declarado_manual=monto_real)
+    if exito:
+        flash("¡Cierre de caja manual procesado y auditado con éxito!")
+    else:
+        flash("Ocurrió un error interno al guardar la sesión de caja.")
+    return redirect(url_for('admin'))
+
+@app.route('/admin/actualizar_parametros_caja', methods=['POST'])
+@login_required
+def actualizar_parametros_caja():
+    if current_user.username != 'omarbri': 
+        return "No autorizado", 403
+
+    config = Configuracion.query.first()
+    if config:
+        config.tasa_dolar_dia = float(request.form.get('tasa_dolar', config.tasa_dolar_dia))
+        config.fondo_semilla_optimo = float(request.form.get('fondo_semilla', config.fondo_semilla_optimo))
+        config.caja_real_disponible = float(request.form.get('caja_disponible', config.caja_real_disponible))
+        db.session.commit()
+        flash("Parámetros de caja y tasas bimoneda actualizados.")
+    return redirect(url_for('admin'))
+
+
 @app.route('/detalle_sorteo_animalito/<int:sorteo_id>')
 def detalle_sorteo_animalito(sorteo_id):
     apuestas = ApuestaAnimalito.query.filter_by(sorteo_id=sorteo_id).all()
@@ -644,6 +778,7 @@ with app.app_context():
         print("🤖 [Sistema] Verificando parrilla de sorteos para HOY tras reinicio del servidor...")
         hoy = get_hora_ve().date()
         ejecutar_programacion_parrilla(hoy)
+
 @app.route('/actualizar_limites', methods=['POST'])
 @login_required
 def actualizar_limites():

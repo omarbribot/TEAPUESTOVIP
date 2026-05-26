@@ -146,6 +146,27 @@ class Configuracion(db.Model):
     mercados_max = db.Column(db.Float, default=1000.0)
 
     piloto_automatico = db.Column(db.Boolean, default=False)
+    tasa_dolar_dia = db.Column(db.Float, default=0.0)
+    fondo_semilla_optimo = db.Column(db.Float, default=0.0)
+    caja_real_disponible = db.Column(db.Float, default=0.0)
 
     def __repr__(self):
         return f'<Configuracion Animalitos: {self.animalitos_min}-{self.animalitos_max} | Piloto: {self.piloto_automatico}>'
+    
+class SesionCaja(db.Model):
+    __tablename__ = 'sesiones_caja'
+    id = db.Column(db.Integer, primary_key=True)
+    
+    fecha_apertura = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    fecha_cierre = db.Column(db.DateTime, nullable=True) # Registra el momento exacto del cierre híbrido
+    
+    monto_apertura_bs = db.Column(db.Float, default=0.0, nullable=False)
+    monto_cierre_sistema = db.Column(db.Float, default=0.0, nullable=False)
+    monto_cierre_real = db.Column(db.Float, default=0.0, nullable=True) # Nullable hasta que se ejecute la conciliación/declaración manual
+    discrepancy = db.Column(db.Float, default=0.0, nullable=False)     # Diferencia: Real - Sistema
+    
+    # Estados de la sesión: 'Abierta', 'Cerrada', 'Cerrada con Déficit', 'Cerrada con Superávit'
+    estado = db.Column(db.String(50), default='Abierta', nullable=False)
+
+    def __repr__(self):
+        return f'<SesionCaja {self.id} - Estado: {self.estado} - Apertura: {self.fecha_apertura.strftime("%Y-%m-%d %H:%M")}>'    
