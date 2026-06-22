@@ -37,6 +37,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 from models import db, Usuario, Sorteo, Mercado, ApuestaMercado, ApuestaAnimalito, Movimiento, Configuracion, SesionCaja
 
 # 3. INICIALIZAMOS COMPONENTES
+app.config['SCHEDULER_TIMEZONE'] = "America/Caracas"
 db.init_app(app)
 migrate = Migrate(app, db)
 scheduler = APScheduler()

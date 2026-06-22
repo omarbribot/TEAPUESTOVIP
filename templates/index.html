@@ -356,6 +356,13 @@ div.overflow-auto::-webkit-scrollbar-track {
                     <i class="fas fa-history me-1"></i> Transacciones
                 </a>
             {% endif %}
+
+            <!-- BOTÓN PANEL DE CONTROL EN EL MENÚ -->
+            {% if current_user.username == 'omarbri' %}
+            <a href="{{ url_for('admin') }}" class="btn btn-sm btn-warning me-2">
+                <i class="fas fa-cog"></i> Panel Control
+            </a>
+            {% endif %}
             
             <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">Salir</a>
         {% else %}
@@ -408,6 +415,85 @@ div.overflow-auto::-webkit-scrollbar-track {
     </div>
 </div>
 
+    <!-- SECCIÓN MERCADOS PREDICTIVOS (MUEVA PRIMERO) -->
+    <div class="row mb-5">
+        <div class="col-12 text-center mb-4">
+            <h3 class="fw-bold"><i class="fas fa-chart-line text-primary me-2"></i>Mercados Activos</h3>
+        </div>
+        
+        <div class="row justify-content-center g-4">
+            {% for item in mercados %}
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card mercado-card shadow-sm h-100 p-3">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <span class="badge bg-primary px-3 py-2 rounded-pill">Activo</span>
+                        </div>
+
+                        <h5 class="card-title mb-1">{{ item.pregunta }}</h5>
+
+                        <div class="mb-3">
+                            <span class="fecha-cierre-box">
+                                <i class="far fa-clock me-1"></i> 
+                                {% if item.fecha_cierre %}
+                                    Cierra: {{ item.fecha_cierre.strftime('%d/%m %I:%M %p') }}
+                                {% else %}
+                                    <span class="text-muted">Sin fecha límite</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="zona-progreso mb-4">
+                            <div class="d-flex justify-content-between small fw-bold mb-1">
+                                <span class="text-success">SÍ {{ item.p_si }}% <span class="badge-cuota">{{ item.cuota_si }}x</span></span>
+                                <span class="text-danger"><span class="badge-cuota">{{ item.cuota_no }}x</span> NO {{ item.p_no }}%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" style="width: {{ item.p_si }}%"></div>
+                                <div class="progress-bar bg-danger" style="width: {{ item.p_no }}%"></div>
+                            </div>
+                            <div class="text-center mt-2 small text-muted">Volumen Total: ${{ "{:,.2f}".format(item.total_si + item.total_no) }}</div>
+                        </div>
+
+                        <div class="mt-auto">
+                            {% if current_user.is_authenticated and not soy_admin %}
+                            <form onsubmit="return false;">
+                                <input type="hidden" name="mercado_id" value="{{ item.id }}">
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="monto" id="input-monto-{{ item.id }}" 
+                                            class="form-control" placeholder="Monto" min="1" step="0.01" 
+                                            oninput="calcularPago({{ item.id }}, {{ item.cuota_si }}, {{ item.cuota_no }})" required>
+                                </div>
+                                
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <button type="button" onclick="enviarApuesta({{ item.id }}, 'SI')" class="btn btn-success w-100 fw-bold">Votar SÍ</button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" onclick="enviarApuesta({{ item.id }}, 'NO')" class="btn btn-danger w-100 fw-bold">Votar NO</button>
+                                    </div>
+                                </div>
+
+                                <span class="estimado-texto text-center">
+                                    Pago estimado (SÍ): <strong class="text-success">$<span id="pago-si-{{ item.id }}">0.00</span></strong> | 
+                                    (NO): <strong class="text-danger">$<span id="pago-no-{{ item.id }}">0.00</span></strong>
+                                </span>
+                            </form>
+                            {% elif soy_admin %}
+                            <div class="alert alert-secondary text-center small py-2 mb-0">MODO ADMINISTRADOR</div>
+                            {% else %}
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary w-100 fw-bold">Inicia sesión para jugar</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SECCIÓN ANIMALITOS (MUEVA DESPUÉS) -->
     <div class="container mt-4">
     <h2 class="text-center mb-4">🐾 Sorteos de Animalitos</h2>
     
@@ -524,90 +610,6 @@ div.overflow-auto::-webkit-scrollbar-track {
         </div>
     </div>
 </div>
-
-        <div class="row mb-5">
-            <div class="col-12 text-center mb-4">
-                <h3 class="fw-bold"><i class="fas fa-chart-line text-primary me-2"></i>Mercados Activos</h3>
-            </div>
-            
-            <div class="row justify-content-center g-4">
-                {% for item in mercados %}
-                <div class="col-12 col-md-6 col-lg-4">
-                    <div class="card mercado-card shadow-sm h-100 p-3">
-                        <div class="card-body d-flex flex-column">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge bg-primary px-3 py-2 rounded-pill">Activo</span>
-                            </div>
-
-                            <h5 class="card-title mb-1">{{ item.pregunta }}</h5>
-
-                            <div class="mb-3">
-                                <span class="fecha-cierre-box">
-                                    <i class="far fa-clock me-1"></i> 
-                                    {% if item.fecha_cierre %}
-                                        Cierra: {{ item.fecha_cierre.strftime('%d/%m %I:%M %p') }}
-                                    {% else %}
-                                        <span class="text-muted">Sin fecha límite</span>
-                                    {% endif %}
-                                </span>
-                            </div>
-                            
-                            <div class="zona-progreso mb-4">
-                                <div class="d-flex justify-content-between small fw-bold mb-1">
-                                    <span class="text-success">SÍ {{ item.p_si }}% <span class="badge-cuota">{{ item.cuota_si }}x</span></span>
-                                    <span class="text-danger"><span class="badge-cuota">{{ item.cuota_no }}x</span> NO {{ item.p_no }}%</span>
-                                </div>
-                                <div class="progress">
-                                    <div class="progress-bar bg-success" style="width: {{ item.p_si }}%"></div>
-                                    <div class="progress-bar bg-danger" style="width: {{ item.p_no }}%"></div>
-                                </div>
-                                <div class="text-center mt-2 small text-muted">Volumen Total: ${{ "{:,.2f}".format(item.total_si + item.total_no) }}</div>
-                            </div>
-
-                            <div class="mt-auto">
-                                {% if current_user.is_authenticated and not soy_admin %}
-                                <form onsubmit="return false;">
-                                    <input type="hidden" name="mercado_id" value="{{ item.id }}">
-                                    <div class="input-group mb-2">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" name="monto" id="input-monto-{{ item.id }}" 
-                                               class="form-control" placeholder="Monto" min="1" step="0.01" 
-                                               oninput="calcularPago({{ item.id }}, {{ item.cuota_si }}, {{ item.cuota_no }})" required>
-                                    </div>
-                                    
-                                    <div class="row g-2">
-                                        <div class="col-6">
-                                            <button type="button" onclick="enviarApuesta({{ item.id }}, 'SI')" class="btn btn-success w-100 fw-bold">Votar SÍ</button>
-                                        </div>
-                                        <div class="col-6">
-                                            <button type="button" onclick="enviarApuesta({{ item.id }}, 'NO')" class="btn btn-danger w-100 fw-bold">Votar NO</button>
-                                        </div>
-                                    </div>
-
-                                    <span class="estimado-texto text-center">
-                                        Pago estimado (SÍ): <strong class="text-success">$<span id="pago-si-{{ item.id }}">0.00</span></strong> | 
-                                        (NO): <strong class="text-danger">$<span id="pago-no-{{ item.id }}">0.00</span></strong>
-                                    </span>
-                                </form>
-                                {% elif soy_admin %}
-                                <div class="alert alert-secondary text-center small py-2 mb-0">MODO ADMINISTRADOR</div>
-                                {% else %}
-                                <a href="{{ url_for('login') }}" class="btn btn-outline-primary w-100 fw-bold">Inicia sesión para jugar</a>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    {% if soy_admin %}
-    <div class="container text-center py-5">
-        <a href="{{ url_for('admin') }}" class="btn btn-dark px-5 py-3 rounded-pill fw-bold shadow"><i class="fas fa-cog me-2"></i>PANEL DE CONTROL</a>
-    </div>
-    {% endif %}
 
     {% endblock %}
     <footer class="text-center py-4 text-muted border-top mt-5">
