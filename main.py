@@ -17,8 +17,14 @@ TZ_VENEZUELA = pytz.timezone('America/Caracas')
 # Función helper para obtener siempre la hora real de Venezuela sin zona horaria adjunta (naive)
 # Esto garantiza que SQLAlchemy y SQLite la comparen perfectamente en las consultas
 def get_hora_ve():
-    return datetime.now(TZ_VENEZUELA).replace(tzinfo=None)
-
+    # 1. Obtenemos la hora directamente
+    hora_ve = datetime.now(TZ_VENEZUELA).replace(tzinfo=None)
+    
+    # 2. Imprimimos para verificar (Esto solo sale en tu consola, no afecta al programa)
+    print(f"--- [DEBUG HORA] Hora real tomada por el sistema: {hora_ve} ---")
+    
+    # 3. Retornamos exactamente lo mismo que tenías antes
+    return hora_ve
 # 1. CONFIGURACIÓN INICIAL
 basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
@@ -62,6 +68,16 @@ def load_user(user_id):
 # --- LÓGICA DE SORTEO AUTOMÁTICO (CONSOLIDADA) ---
 def ejecutar_giro_animalito(sorteo_id):
     with app.app_context():
+        # --- NUEVA SEGURIDAD: SI EL PILOTO ESTÁ APAGADO, NO HACER NADA ---
+        config = Configuracion.query.first()
+        if not config or not config.piloto_automatico:
+            print(f"⚠️ [Piloto] Sorteo {sorteo_id} cancelado por estar DESACTIVADO.")
+            return
+        # -----------------------------------------------------------------
+
+        sorteo = db.session.get(Sorteo, sorteo_id)
+        if not sorteo or sorteo.estado.upper() == 'FINALIZADO':
+            return
         sorteo = db.session.get(Sorteo, sorteo_id)
         if not sorteo or sorteo.estado.upper() == 'FINALIZADO':
             return
@@ -551,6 +567,12 @@ def solicitar_retiro_auto():
 @scheduler.task('interval', id='revisar_pendientes', seconds=60)
 def revisar_sorteos_pasados():
     with app.app_context():
+        config = Configuracion.query.first()
+        if not config or not config.piloto_automatico:
+            return
+        
+        pendientes = Sorteo.query.filter(Sorteo.horario <= get_hora_ve(), Sorteo.estado != 'FINALIZADO').all()
+        for s in pendientes: ejecutar_giro_animalito(s.id)
         pendientes = Sorteo.query.filter(Sorteo.horario <= get_hora_ve(), Sorteo.estado != 'FINALIZADO').all()
         for s in pendientes: ejecutar_giro_animalito(s.id)
 
