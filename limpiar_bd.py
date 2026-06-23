@@ -29,8 +29,8 @@ def limpiar_datos_prueba():
             
             # 2. Resetear saldos de usuarios (sin borrarlos)
             from models import Usuario
-            db.session.query(Usuario).update({"saldo": 0.0})
-            print("💰 Saldos de usuarios reseteados a 0.")
+            db.session.query(Usuario).update({"saldo": 5000.0})
+            print("💰 Saldos de usuarios iniciados en a 5000.")
             
             # 3. Resetear configuración
             from models import Configuracion

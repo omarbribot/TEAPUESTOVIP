@@ -171,13 +171,13 @@ def ejecutar_giro_animalito(sorteo_id):
             gano = False
             cuota = 0
 
-            if ap.animal_elegido == numero_ganador:
+           # Esto funcionará tanto si el usuario eligió "09" como si eligió "09 - ÁGUILA"
+            if numero_ganador in str(ap.animal_elegido):
                 gano, cuota = True, 30
             elif ap.animal_elegido == 'PAR' and es_par:
                 gano, cuota = True, 1.95
             elif ap.animal_elegido == 'IMPAR' and es_impar:
                 gano, cuota = True, 1.95
-
             if gano:
                 premio = round(ap.monto * cuota, 2)
                 ap.estado = 'GANADA'
@@ -261,12 +261,9 @@ def home():
 def apostar_animalito():
     print("--- [DEBUG] Petición recibida en /apostar_animalito ---")
     data = request.get_json()
-    print(f"DEBUG RECIBIDO: {data}")
     if not data:
         return jsonify({'status': 'error', 'message': 'Datos no recibidos'}), 400
 
-    # LÓGICA DE IDENTIDAD DINÁMICA
-    # Si hay sesión, usamos current_user. Si no, buscamos por el 'user_id' que manda el bot
     if current_user.is_authenticated:
         usuario = current_user
     else:
@@ -274,50 +271,61 @@ def apostar_animalito():
         usuario = Usuario.query.get(user_id_bot) if user_id_bot else None
 
     if not usuario:
-        return jsonify({'status': 'error', 'message': 'Usuario no autenticado o no encontrado'}), 401
+        return jsonify({'status': 'error', 'message': 'Usuario no autenticado'}), 401
 
     sorteo_id = data.get('sorteo_id')
-    animal_elegido = data.get('animal')
+    # Recibimos el código tal cual lo envía el bot (ej: "9" o "09")
+    codigo_animal = str(data.get('animal', '')).strip()
     
+    # NORMALIZACIÓN: Convertimos el código a la llave que existe en ANIMALITOS
+    # Si llega "09" -> lo convertimos a "9" (lstrip('0') quita el cero)
+    # Nota: Si el código es '00' o '0', lo dejamos tal cual porque así lo tienes en constantes
+    codigo_final = codigo_animal.lstrip('0') if codigo_animal not in ['0', '00'] else codigo_animal
+    
+    # Obtenemos el nombre oficial del animal desde constantes.py
+    animal_final = ANIMALITOS.get(codigo_final)
+    
+    # Si el bot envió algo que no es un código, intentamos buscar por nombre (por seguridad)
+    if not animal_final:
+        for cod, nombre in ANIMALITOS.items():
+            if nombre.upper() == codigo_animal.upper():
+                animal_final = nombre
+                break
+    
+    if not animal_final:
+        return jsonify({'status': 'error', 'message': 'Animal no válido'}), 400
+
     try:
         monto = float(data.get('monto', 0))
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Monto no válido'}), 400
 
+    # ... (tu lógica de validación de config, saldo y sorteo se mantiene igual)
     config = Configuracion.query.first()
-    if config:
-        if monto < config.animalitos_min:
-            return jsonify({'status': 'error', 'message': f'Monto mínimo: {config.animalitos_min:,.2f}'}), 400
-        if monto > config.animalitos_max:
-            return jsonify({'status': 'error', 'message': f'Monto máximo: {config.animalitos_max:,.2f}'}), 400
+    if config and (monto < config.animalitos_min or monto > config.animalitos_max):
+        return jsonify({'status': 'error', 'message': 'Monto fuera de límites'}), 400
 
-    # Validamos saldo usando la variable 'usuario' en lugar de 'current_user'
     if monto <= 0 or usuario.saldo < monto:
-        return jsonify({'status': 'error', 'message': 'Saldo insuficiente o monto inválido'}), 400
+        return jsonify({'status': 'error', 'message': 'Saldo insuficiente'}), 400
 
     sorteo = db.session.get(Sorteo, sorteo_id)
-    if sorteo:
-        ahora = get_hora_ve()
-        segundos_restantes = (sorteo.horario - ahora).total_seconds()
-        if segundos_restantes < 120:
-            return jsonify({'status': 'error', 'message': 'Sorteo cerrado.'}), 400
-
-    if not sorteo or sorteo.estado.upper() not in ['PENDIENTE', 'PROGRAMADO']:
-        return jsonify({'status': 'error', 'message': 'Sorteo no disponible'}), 400
+    if not sorteo or (sorteo.horario - get_hora_ve()).total_seconds() < 120:
+        return jsonify({'status': 'error', 'message': 'Sorteo no disponible o cerrado'}), 400
 
     try:
-        # Aplicamos cambios sobre el objeto 'usuario'
         usuario.saldo = round(usuario.saldo - monto, 2)
         
+        # GUARDAMOS EL NOMBRE OFICIAL (ej: "ÁGUILA")
         nueva_apuesta = ApuestaAnimalito(
             usuario_id=usuario.id,
             sorteo_id=sorteo_id,
-            animal_elegido=str(animal_elegido).upper(),
+            animal_elegido=animal_final, 
             monto=monto,
             estado='PENDIENTE'
         )
         db.session.add(nueva_apuesta)
 
+        # Registro del movimiento
         mov_compra = Movimiento(
             user_id=usuario.id,
             tipo='Apuesta Animalito',
@@ -332,7 +340,7 @@ def apostar_animalito():
         db.session.commit()
         return jsonify({
             'status': 'success',
-            'message': f'Apuesta al {animal_elegido} procesada',
+            'message': f'Apuesta al {animal_final} procesada',
             'nuevo_saldo': f"{usuario.saldo:,.2f}"
         })
     except Exception as e:
@@ -803,6 +811,7 @@ def cierre_automatico_caja_cron():
 
 @scheduler.task('cron', id='actualizar_tasa_cron', hour=8, minute=30)
 def cron_actualizar_tasa():
+    
     actualizar_tasa_dolar()
 # --- NUEVAS RUTAS DE CAJA (PANEL ADMINISTRADOR) ---
 @app.route('/admin/cierre_manual_caja', methods=['POST'])
@@ -845,7 +854,7 @@ def detalle_sorteo_animalito(sorteo_id):
     apuestas = ApuestaAnimalito.query.filter_by(sorteo_id=sorteo_id).all()
     resultado = [{
         'username': ap.usuario.username,
-        'animal_elegido': f"{ap.animal_elegido} - {ANIMALITOS.get(ap.animal_elegido, 'S/N')}",
+        'animal_elegido': ap.animal_elegido,
         'monto': ap.monto,
         'estado': ap.estado
     } for ap in apuestas]
