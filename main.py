@@ -7,7 +7,8 @@ import os
 import random
 import uuid
 import time
-from constantes import ANIMALITOS, ICONOS_ANIMALITOS
+import requests
+from constantes import ANIMALITOS, ICONOS_ANIMALITOS, TOKEN_API_SEGURO
 from flask_apscheduler import APScheduler
 import pytz
 
@@ -47,14 +48,65 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
+def actualizar_tasa_dolar():
+    """
+    Actualiza la tasa del dólar en la base de datos usando dos fuentes de respaldo.
+    """
+    tasa_obtenida = None
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+    # Intentar con la Opción 1 (ER-API)
+    try:
+        url = "https://open.er-api.com/v6/latest/USD"
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            datos = response.json()
+            tasa_ves = datos.get("rates", {}).get("VES")
+            if tasa_ves:
+                tasa_obtenida = round(float(tasa_ves), 2)
+                print(f"✅ Tasa obtenida vía API Global: {tasa_obtenida}")
+    except Exception as e:
+        print(f"⚠️ Error en API Global: {e}")
+
+    # Si la opción 1 falló, intentar con el respaldo (pydolarvenezuela)
+    if not tasa_obtenida:
+        try:
+            url_respaldo = "https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv"
+            response = requests.get(url_respaldo, headers=headers, timeout=5)
+            if response.status_code == 200:
+                datos = response.json()
+                # Ajuste según la estructura real de respuesta que tiene esa API
+                price = datos.get('monedas', {}).get('usd', {}).get('price')
+                if price:
+                    tasa_obtenida = float(price)
+                    print(f"✅ Tasa obtenida vía Respaldo: {tasa_obtenida}")
+        except Exception as e:
+            print(f"⚠️ Error en API de Respaldo: {e}")
+
+    # Si conseguimos una tasa válida, guardarla en BD
+    if tasa_obtenida:
+        with app.app_context():
+            config = Configuracion.query.first()
+            if config:
+                config.tasa_dolar_dia = tasa_obtenida
+                db.session.commit()
+    else:
+        print("❌ Fallaron todas las fuentes para obtener la tasa del dólar.")
+from flask import request, abort # Asegúrate de importar abort
+
 @app.route('/ejecutar-sorteo-secreto-xyz789')
 def ejecucion_forzada_externa():
+    # Usamos la constante importada
+    token_recibido = request.args.get('token')
+    
+    if token_recibido != TOKEN_API_SEGURO:
+        return jsonify({"status": "error", "message": "No autorizado"}), 401
+
     try:
         ejecutar_programacion_parrilla(datetime.now() + timedelta(days=1))
-        return {"status": "success", "message": "Parrilla de mañana generada"}, 200
+        return jsonify({"status": "success", "message": "Parrilla de mañana generada"}), 200
     except Exception as e:
-        return {"status": "error", "message": str(e)}, 500
-
+        return jsonify({"status": "error", "message": str(e)}), 500
 @app.context_processor
 def utility_processor():
     def obtener_icono(numero):
@@ -187,6 +239,7 @@ def home():
                            animalitos_dict=ANIMALITOS,
                            resultados=ultimos_resultados)
 
+
 @app.route('/apostar_animalito', methods=['POST'])
 @login_required
 def apostar_animalito():
@@ -285,8 +338,8 @@ def apostar_mercado():
 
     if monto <= 0 or current_user.saldo < monto:
         return jsonify({'status': 'error', 'message': 'Saldo insuficiente'}), 400
-
-    mercado = db.session.get(Market := Mercado, mercado_id)
+    
+    mercado = db.session.get(Mercado, mercado_id)
     if not mercado or mercado.estado != 'Abierto':
         return jsonify({'status': 'error', 'message': 'Mercado cerrado'}), 400
 
@@ -574,9 +627,7 @@ def revisar_sorteos_pasados():
         
         pendientes = Sorteo.query.filter(Sorteo.horario <= get_hora_ve(), Sorteo.estado != 'FINALIZADO').all()
         for s in pendientes: ejecutar_giro_animalito(s.id)
-        pendientes = Sorteo.query.filter(Sorteo.horario <= get_hora_ve(), Sorteo.estado != 'FINALIZADO').all()
-        for s in pendientes: ejecutar_giro_animalito(s.id)
-
+        
 # =====================================================================
 # 🚀 ROUTINE: PILOTO AUTOMÁTICO (MODULARIZADA)
 # =====================================================================
@@ -720,7 +771,9 @@ def cierre_automatico_caja_cron():
         print("🕒 [Caja] Ejecutando cierre de caja automatizado de las 11:59 PM...")
         ejecutar_cierre_procesamiento_caja()
 
-
+@scheduler.task('cron', id='actualizar_tasa_cron', hour=8, minute=30)
+def cron_actualizar_tasa():
+    actualizar_tasa_dolar()
 # --- NUEVAS RUTAS DE CAJA (PANEL ADMINISTRADOR) ---
 @app.route('/admin/cierre_manual_caja', methods=['POST'])
 @login_required
@@ -772,11 +825,6 @@ def detalle_sorteo_animalito(sorteo_id):
         'apuestas': resultado
     })
 
-@app.route('/add_animalito', methods=['POST'])
-@login_required
-def add_animalito():
-    flash("Función activa")
-    return redirect(url_for('admin'))
 
 @app.route('/add_mercado', methods=['POST'])
 @login_required
@@ -790,6 +838,7 @@ def add_mercado():
 # --- INICIALIZACIÓN ---
 with app.app_context():
     db.create_all()
+    actualizar_tasa_dolar()
     if not Usuario.query.filter_by(username='omarbri').first():
         admin_user = Usuario(nombre_completo="Admin Omar", cedula="00000000", username='omarbri', email='admin@teapuestovip.com', telefono='000000000', saldo=0.0)
         admin_user.set_password('tu_clave_aqui')
@@ -869,5 +918,6 @@ def detalle_mercado_apuestas(mercado_id):
         'status': 'success',
         'apuestas': resultado
     })
+
 if __name__ == '__main__':
     app.run(debug=True)

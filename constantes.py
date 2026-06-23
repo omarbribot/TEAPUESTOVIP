@@ -24,3 +24,5 @@ ICONOS_ANIMALITOS = {
     "31": "fa-paw", "32": "fa-paw", "33": "fa-fish", "34": "fa-tree",
     "35": "fa-long-arrow-alt-up", "36":  "fa-wave-square",
     }
+# Token para procesos automatizados y webhooks
+TOKEN_API_SEGURO = "VIP_TOKEN_2026_TEST"
