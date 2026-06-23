@@ -3,6 +3,8 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
 from sqlalchemy import func
+from functools import wraps
+from consultas import consultas_bp
 import os
 import random
 import uuid
@@ -26,17 +28,31 @@ def get_hora_ve():
     
     # 3. Retornamos exactamente lo mismo que tenías antes
     return hora_ve
+def auth_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 1. Verificamos si viene por navegador (login activo)
+        if current_user and current_user.is_authenticated:
+            return f(*args, **kwargs)
+        
+        # 2. Verificamos si viene el token de API para inyecciones
+        token = request.headers.get('Authorization')
+        if token == f"Bearer {TOKEN_API_SEGURO}":
+            return f(*args, **kwargs)
+        
+        # 3. Si no hay nada, acceso denegado
+        return jsonify({'status': 'error', 'message': 'Acceso no autorizado'}), 403
+    return decorated_function
 # 1. CONFIGURACIÓN INICIAL
 basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tu_clave_secreta_aqui'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'teapuesto.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+app.register_blueprint(consultas_bp)
 # 2. IMPORTAMOS DB Y LOS MODELOS
 # ◄ MODIFICACIÓN: Incluimos SesionCaja
 from models import db, Usuario, Sorteo, Mercado, ApuestaMercado, ApuestaAnimalito, Movimiento, Configuracion, SesionCaja
-
 # 3. INICIALIZAMOS COMPONENTES
 app.config['SCHEDULER_TIMEZONE'] = "America/Caracas"
 db.init_app(app)
@@ -241,11 +257,28 @@ def home():
 
 
 @app.route('/apostar_animalito', methods=['POST'])
-@login_required
+@auth_required
 def apostar_animalito():
+    print("--- [DEBUG] Petición recibida en /apostar_animalito ---")
     data = request.get_json()
+    print(f"DEBUG RECIBIDO: {data}")
+    if not data:
+        return jsonify({'status': 'error', 'message': 'Datos no recibidos'}), 400
+
+    # LÓGICA DE IDENTIDAD DINÁMICA
+    # Si hay sesión, usamos current_user. Si no, buscamos por el 'user_id' que manda el bot
+    if current_user.is_authenticated:
+        usuario = current_user
+    else:
+        user_id_bot = data.get('user_id')
+        usuario = Usuario.query.get(user_id_bot) if user_id_bot else None
+
+    if not usuario:
+        return jsonify({'status': 'error', 'message': 'Usuario no autenticado o no encontrado'}), 401
+
     sorteo_id = data.get('sorteo_id')
     animal_elegido = data.get('animal')
+    
     try:
         monto = float(data.get('monto', 0))
     except (ValueError, TypeError):
@@ -254,18 +287,12 @@ def apostar_animalito():
     config = Configuracion.query.first()
     if config:
         if monto < config.animalitos_min:
-            return jsonify({
-                'status': 'error',
-                'message': f'El monto mínimo para apostar es {config.animalitos_min:,.2f}'
-            }), 400
-
+            return jsonify({'status': 'error', 'message': f'Monto mínimo: {config.animalitos_min:,.2f}'}), 400
         if monto > config.animalitos_max:
-            return jsonify({
-                'status': 'error',
-                'message': f'El monto máximo permitido por apuesta es {config.animalitos_max:,.2f}'
-            }), 400
+            return jsonify({'status': 'error', 'message': f'Monto máximo: {config.animalitos_max:,.2f}'}), 400
 
-    if monto <= 0 or current_user.saldo < monto:
+    # Validamos saldo usando la variable 'usuario' en lugar de 'current_user'
+    if monto <= 0 or usuario.saldo < monto:
         return jsonify({'status': 'error', 'message': 'Saldo insuficiente o monto inválido'}), 400
 
     sorteo = db.session.get(Sorteo, sorteo_id)
@@ -279,9 +306,11 @@ def apostar_animalito():
         return jsonify({'status': 'error', 'message': 'Sorteo no disponible'}), 400
 
     try:
-        current_user.saldo = round(current_user.saldo - monto, 2)
+        # Aplicamos cambios sobre el objeto 'usuario'
+        usuario.saldo = round(usuario.saldo - monto, 2)
+        
         nueva_apuesta = ApuestaAnimalito(
-            usuario_id=current_user.id,
+            usuario_id=usuario.id,
             sorteo_id=sorteo_id,
             animal_elegido=str(animal_elegido).upper(),
             monto=monto,
@@ -289,11 +318,10 @@ def apostar_animalito():
         )
         db.session.add(nueva_apuesta)
 
-        # ◄ AUDITORÍA: Registro de la compra de la apuesta (Animalitos)
         mov_compra = Movimiento(
-            user_id=current_user.id,
+            user_id=usuario.id,
             tipo='Apuesta Animalito',
-            monto=-monto, # Flujo de salida (Negativo)
+            monto=-monto,
             referencia=f"APS-A-{sorteo_id}",
             banco_emisor='Saldo Interno',
             estatus='Completado',
@@ -305,7 +333,7 @@ def apostar_animalito():
         return jsonify({
             'status': 'success',
             'message': f'Apuesta al {animal_elegido} procesada',
-            'nuevo_saldo': f"{current_user.saldo:,.2f}"
+            'nuevo_saldo': f"{usuario.saldo:,.2f}"
         })
     except Exception as e:
         db.session.rollback()
@@ -769,6 +797,8 @@ def ejecutar_cierre_procesamiento_caja(monto_declarado_manual=None):
 def cierre_automatico_caja_cron():
     with app.app_context():
         print("🕒 [Caja] Ejecutando cierre de caja automatizado de las 11:59 PM...")
+        hora_disparo = get_hora_ve()
+        print(f"🕒 [Caja] ¡CRON DISPARADO! Hora actual del sistema en el disparo: {hora_disparo}")
         ejecutar_cierre_procesamiento_caja()
 
 @scheduler.task('cron', id='actualizar_tasa_cron', hour=8, minute=30)
@@ -920,4 +950,4 @@ def detalle_mercado_apuestas(mercado_id):
     })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(threaded=True, debug=False)

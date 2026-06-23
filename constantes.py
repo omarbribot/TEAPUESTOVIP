@@ -26,3 +26,4 @@ ICONOS_ANIMALITOS = {
     }
 # Token para procesos automatizados y webhooks
 TOKEN_API_SEGURO = "VIP_TOKEN_2026_TEST"
+URL_BASE = "http://127.0.0.1:5000"
