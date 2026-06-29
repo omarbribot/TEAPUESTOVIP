@@ -55,9 +55,11 @@ app.register_blueprint(consultas_bp)
 from models import db, Usuario, Sorteo, Mercado, ApuestaMercado, ApuestaAnimalito, Movimiento, Configuracion, SesionCaja
 # 3. INICIALIZAMOS COMPONENTES
 app.config['SCHEDULER_TIMEZONE'] = "America/Caracas"
+app.config['SCHEDULER_API_ENABLED'] = True
 db.init_app(app)
 migrate = Migrate(app, db)
 scheduler = APScheduler()
+scheduler.timezone = TZ_VENEZUELA
 scheduler.init_app(app)
 scheduler.start()
 login_manager = LoginManager()
@@ -657,12 +659,27 @@ def solicitar_retiro_auto():
 @scheduler.task('interval', id='revisar_pendientes', seconds=60)
 def revisar_sorteos_pasados():
     with app.app_context():
+        # 1. Validación rápida de configuración
         config = Configuracion.query.first()
         if not config or not config.piloto_automatico:
             return
         
-        pendientes = Sorteo.query.filter(Sorteo.horario <= get_hora_ve(), Sorteo.estado != 'FINALIZADO').all()
-        for s in pendientes: ejecutar_giro_animalito(s.id)
+        # 2. Consultar sorteos pendientes
+        # Comparamos con get_hora_ve() que ya maneja la hora real de Venezuela
+        pendientes = Sorteo.query.filter(
+            Sorteo.horario <= get_hora_ve(), 
+            Sorteo.estado != 'FINALIZADO'
+        ).all()
+        
+        # 3. Optimización: Si no hay nada, salimos sin hacer nada más y sin loguear basura
+        if not pendientes:
+            return
+        
+        # 4. Si hay pendientes, procedemos con la lógica
+        print(f"--- [INFO] Procesando {len(pendientes)} sorteos pendientes ---")
+        for s in pendientes:
+            ejecutar_giro_animalito(s.id)
+            print(f"--- [INFO] Sorteo {s.id} procesado correctamente ---")
         
 # =====================================================================
 # 🚀 ROUTINE: PILOTO AUTOMÁTICO (MODULARIZADA)
