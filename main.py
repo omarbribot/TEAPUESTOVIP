@@ -61,7 +61,7 @@ app.config['SCHEDULER_API_ENABLED'] = True
 db.init_app(app)
 migrate = Migrate(app, db)
 scheduler = APScheduler()
-scheduler.timezone = TZ_VENEZUELA
+#scheduler.timezone = TZ_VENEZUELA
 scheduler.init_app(app)
 scheduler.start()
 login_manager = LoginManager()
@@ -271,12 +271,14 @@ def apostar_animalito():
         monto = float(data.get('monto', 0))
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Monto no válido'}), 400
+    
     if monto <= 0 or current_user.saldo < monto:
         return jsonify({'status': 'error', 'message': 'Saldo insuficiente o monto inválido'}), 400
+    
     sorteo = db.session.get(Sorteo, sorteo_id)
     # --- BLOQUE DE SEGURIDAD: VALIDACIÓN DE CIERRE ---
     if sorteo:
-        ahora = datetime.now()
+        ahora = get_hora_ve()
         # Calculamos cuántos segundos faltan para el sorteo
         segundos_restantes = (sorteo.horario - ahora).total_seconds()
         
@@ -287,9 +289,10 @@ def apostar_animalito():
                 'message': 'Sorteo cerrado. Las apuestas cierran 2 minutos antes del inicio.'
             }), 400
     # -------------------------------------------------
-    # AJUSTE 1: Cambié 'PROGRAMADO' por 'Pendiente' para que coincida con tu captura anterior
+    
     if not sorteo or sorteo.estado.upper() not in ['PENDIENTE', 'PROGRAMADO']:
         return jsonify({'status': 'error', 'message': 'Sorteo no disponible o ya cerrado'}), 400
+    
     try:
         # AJUSTE 2: Redondeo de saldo para evitar decimales infinitos
         current_user.saldo = round(current_user.saldo - monto, 2)
@@ -301,7 +304,21 @@ def apostar_animalito():
             estado='PENDIENTE'
         )
         db.session.add(nueva_apuesta)
+
+        # ◄ AUDITORÍA: Registro de la compra de la apuesta (Animalitos)
+        mov_compra_a = Movimiento(
+            user_id=current_user.id,
+            tipo='Apuesta Animalito',
+            monto=-monto, # Flujo de salida (Negativo)
+            referencia=f"APS-A-{sorteo_id}-{animal_elegido}",
+            banco_emisor='Saldo Interno',
+            estatus='Completado',
+            fecha_transaccion=datetime.now().strftime("%d/%m/%Y")
+        )
+        db.session.add(mov_compra_a)
+
         db.session.commit()
+        
         # Devolvemos el éxito para que el JavaScript actualice el saldo en pantalla
         return jsonify({
             'status': 'success',
@@ -310,7 +327,7 @@ def apostar_animalito():
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500# --- NUEVA RUTA DE MERCADOS (LA QUE FALTABA) ---
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/apostar_mercado', methods=['POST'])
 @login_required
