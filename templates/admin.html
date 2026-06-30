@@ -30,6 +30,24 @@
         input:focus + .slider { box-shadow: 0 0 1px #22c55e; }
         input:checked + .slider:before { transform: translateX(26px); }
         .status-badge { font-weight: 600; font-size: 0.95rem; }
+/* Usamos !important para saltarnos las reglas de Bootstrap */
+.GANADA { 
+    background-color: #000000 !important; 
+    color: #ffffff !important; 
+    border: 1px solid #000 !important;
+}
+
+.PERDIDA { 
+    background-color: #e0e0e0 !important; 
+    color: #000000 !important; 
+    border: 1px solid #333 !important;
+}
+
+.PENDIENTE { 
+    background-color: #ff9800 !important; 
+    color: #ffffff !important; 
+    border: 1px solid #e65100 !important;
+}
     </style>
 </head>
 <body>
@@ -638,16 +656,25 @@
                             if (data.status === 'success' && data.apuestas.length > 0) {
                                 cuerpoTabla.innerHTML = '';
                                 data.apuestas.forEach(ap => {
-                                    let badgeColor = 'bg-warning text-dark';
-                                    if (ap.estado === 'GANADA') badgeColor = 'bg-success';
-                                    if (ap.estado === 'PERDIDA') badgeColor = 'bg-danger';
+                                    // 1. Elegimos SOLO la clase de estado (GANADA, PERDIDA, PENDIENTE)
+                                    // Ya no usamos bg-success ni similares para evitar el conflicto
+                                    let claseEstado = ap.estado; // Esto será "GANADA", "PERDIDA" o "PENDIENTE"
+
+                                    // 2. Lógica para ocultar el nombre en PAR/IMPAR
+                                    let esEspecial = (ap.animal_elegido === 'PAR' || ap.animal_elegido === 'IMPAR');
+                                    let contenidoNombre = esEspecial ? '' : `<span class="badge bg-light text-dark border">${ap.nombre_animal || ''}</span>`;
 
                                     cuerpoTabla.innerHTML += `
                                         <tr>
                                             <td class="fw-bold">@${ap.username}</td>
-                                            <td><span class="badge bg-light text-dark font-monospace">${ap.animal_elegido}</span></td>
+                                            <td class="align-middle">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge bg-dark font-monospace">${ap.animal_elegido}</span>
+                                                    ${contenidoNombre}
+                                                </div>
+                                            </td>
                                             <td class="font-monospace fw-bold">${parseFloat(ap.monto).toFixed(2)} Bs.</td>
-                                            <td><span class="badge ${badgeColor}">${ap.estado}</span></td>
+                                            <td><span class="badge ${claseEstado}">${ap.estado}</span></td>
                                         </tr>
                                     `;
                                 });

@@ -10,6 +10,8 @@ import random
 import uuid
 import time
 import requests
+import importlib
+import constantes
 from constantes import ANIMALITOS, ICONOS_ANIMALITOS, TOKEN_API_SEGURO
 from flask_apscheduler import APScheduler
 import pytz
@@ -258,96 +260,57 @@ def home():
                            resultados=ultimos_resultados)
 
 
+
 @app.route('/apostar_animalito', methods=['POST'])
-@auth_required
+@login_required
 def apostar_animalito():
-    print("--- [DEBUG] Petición recibida en /apostar_animalito ---")
     data = request.get_json()
-    if not data:
-        return jsonify({'status': 'error', 'message': 'Datos no recibidos'}), 400
-
-    if current_user.is_authenticated:
-        usuario = current_user
-    else:
-        user_id_bot = data.get('user_id')
-        usuario = Usuario.query.get(user_id_bot) if user_id_bot else None
-
-    if not usuario:
-        return jsonify({'status': 'error', 'message': 'Usuario no autenticado'}), 401
-
     sorteo_id = data.get('sorteo_id')
-    # Recibimos el código tal cual lo envía el bot (ej: "9" o "09")
-    codigo_animal = str(data.get('animal', '')).strip()
-    
-    # NORMALIZACIÓN: Convertimos el código a la llave que existe en ANIMALITOS
-    # Si llega "09" -> lo convertimos a "9" (lstrip('0') quita el cero)
-    # Nota: Si el código es '00' o '0', lo dejamos tal cual porque así lo tienes en constantes
-    codigo_final = codigo_animal.lstrip('0') if codigo_animal not in ['0', '00'] else codigo_animal
-    
-    # Obtenemos el nombre oficial del animal desde constantes.py
-    animal_final = ANIMALITOS.get(codigo_final)
-    
-    # Si el bot envió algo que no es un código, intentamos buscar por nombre (por seguridad)
-    if not animal_final:
-        for cod, nombre in ANIMALITOS.items():
-            if nombre.upper() == codigo_animal.upper():
-                animal_final = nombre
-                break
-    
-    if not animal_final:
-        return jsonify({'status': 'error', 'message': 'Animal no válido'}), 400
-
+    animal_elegido = data.get('animal') # Aquí llegará "8", "PAR" o "IMPAR"
     try:
         monto = float(data.get('monto', 0))
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Monto no válido'}), 400
-
-    # ... (tu lógica de validación de config, saldo y sorteo se mantiene igual)
-    config = Configuracion.query.first()
-    if config and (monto < config.animalitos_min or monto > config.animalitos_max):
-        return jsonify({'status': 'error', 'message': 'Monto fuera de límites'}), 400
-
-    if monto <= 0 or usuario.saldo < monto:
-        return jsonify({'status': 'error', 'message': 'Saldo insuficiente'}), 400
-
+    if monto <= 0 or current_user.saldo < monto:
+        return jsonify({'status': 'error', 'message': 'Saldo insuficiente o monto inválido'}), 400
     sorteo = db.session.get(Sorteo, sorteo_id)
-    if not sorteo or (sorteo.horario - get_hora_ve()).total_seconds() < 120:
-        return jsonify({'status': 'error', 'message': 'Sorteo no disponible o cerrado'}), 400
-
-    try:
-        usuario.saldo = round(usuario.saldo - monto, 2)
+    # --- BLOQUE DE SEGURIDAD: VALIDACIÓN DE CIERRE ---
+    if sorteo:
+        ahora = datetime.now()
+        # Calculamos cuántos segundos faltan para el sorteo
+        segundos_restantes = (sorteo.horario - ahora).total_seconds()
         
-        # GUARDAMOS EL NOMBRE OFICIAL (ej: "ÁGUILA")
+        # Si faltan menos de 120 segundos (2 minutos), bloqueamos
+        if segundos_restantes < 120:
+            return jsonify({
+                'status': 'error', 
+                'message': 'Sorteo cerrado. Las apuestas cierran 2 minutos antes del inicio.'
+            }), 400
+    # -------------------------------------------------
+    # AJUSTE 1: Cambié 'PROGRAMADO' por 'Pendiente' para que coincida con tu captura anterior
+    if not sorteo or sorteo.estado.upper() not in ['PENDIENTE', 'PROGRAMADO']:
+        return jsonify({'status': 'error', 'message': 'Sorteo no disponible o ya cerrado'}), 400
+    try:
+        # AJUSTE 2: Redondeo de saldo para evitar decimales infinitos
+        current_user.saldo = round(current_user.saldo - monto, 2)
         nueva_apuesta = ApuestaAnimalito(
-            usuario_id=usuario.id,
+            usuario_id=current_user.id,
             sorteo_id=sorteo_id,
-            animal_elegido=animal_final, 
+            animal_elegido=str(animal_elegido).upper(), # Guardamos siempre en mayúsculas
             monto=monto,
             estado='PENDIENTE'
         )
         db.session.add(nueva_apuesta)
-
-        # Registro del movimiento
-        mov_compra = Movimiento(
-            user_id=usuario.id,
-            tipo='Apuesta Animalito',
-            monto=-monto,
-            referencia=f"APS-A-{sorteo_id}",
-            banco_emisor='Saldo Interno',
-            estatus='Completado',
-            fecha_transaccion=datetime.now().strftime("%d/%m/%Y")
-        )
-        db.session.add(mov_compra)
-
         db.session.commit()
+        # Devolvemos el éxito para que el JavaScript actualice el saldo en pantalla
         return jsonify({
             'status': 'success',
-            'message': f'Apuesta al {animal_final} procesada',
-            'nuevo_saldo': f"{usuario.saldo:,.2f}"
+            'message': f'Apuesta al {animal_elegido} procesada',
+            'nuevo_saldo': f"{current_user.saldo:,.2f}"
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': str(e)}), 500# --- NUEVA RUTA DE MERCADOS (LA QUE FALTABA) ---
 
 @app.route('/apostar_mercado', methods=['POST'])
 @login_required
@@ -869,20 +832,24 @@ def actualizar_parametros_caja():
     return redirect(url_for('admin'))
 
 
+from constantes import ANIMALITOS # Asegúrate de tener esto
+
 @app.route('/detalle_sorteo_animalito/<int:sorteo_id>')
+@login_required
 def detalle_sorteo_animalito(sorteo_id):
     apuestas = ApuestaAnimalito.query.filter_by(sorteo_id=sorteo_id).all()
-    resultado = [{
-        'username': ap.usuario.username,
-        'animal_elegido': ap.animal_elegido,
-        'monto': ap.monto,
-        'estado': ap.estado
-    } for ap in apuestas]
-
-    return jsonify({
-        'status': 'success',
-        'apuestas': resultado
-    })
+    resultado = []
+    for ap in apuestas:
+        resultado.append({
+            'username': ap.usuario.username,
+            'animal_elegido': ap.animal_elegido, # Nombre oficial
+            'codigo_animal': ap.animal_elegido,   # Si guardaste el código aquí
+            # Traducción directa usando el diccionario que ya tienes en constantes
+            'nombre_animal': ANIMALITOS.get(str(ap.animal_elegido), 'Desconocido'),
+            'monto': ap.monto,
+            'estado': ap.estado
+        })
+    return jsonify({'status': 'success', 'apuestas': resultado})
 
 
 @app.route('/add_mercado', methods=['POST'])

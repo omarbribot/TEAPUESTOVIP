@@ -25,7 +25,7 @@ def ejecutar_inyeccion(num_apuestas=20):
         datos = {
             "user_id": user_id_random,
             "monto": monto_random,
-            "sorteo_id": 3, 
+            "sorteo_id": 1, 
             "animal": num_random 
         }
         
@@ -44,4 +44,4 @@ def ejecutar_inyeccion(num_apuestas=20):
         time.sleep(random.uniform(0.3, 0.7))
 
 if __name__ == "__main__":
-    ejecutar_inyeccion(50)
+    ejecutar_inyeccion(250)
