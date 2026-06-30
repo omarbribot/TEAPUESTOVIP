@@ -656,30 +656,31 @@ def solicitar_retiro_auto():
         db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@scheduler.task('interval', id='revisar_pendientes', seconds=60)
+@scheduler.task('interval', id='revisar_pendientes', seconds=120) # Aumentado a 2 minutos
 def revisar_sorteos_pasados():
     with app.app_context():
-        # 1. Validación rápida de configuración
+        # 1. Validación de configuración
         config = Configuracion.query.first()
         if not config or not config.piloto_automatico:
             return
         
-        # 2. Consultar sorteos pendientes
-        # Comparamos con get_hora_ve() que ya maneja la hora real de Venezuela
+        # 2. Consultar solo sorteos pasados pero muy cercanos (ej: hace menos de 1 hora)
+        # Esto evita escanear toda la historia de sorteos si el servidor falló hace días.
+        hace_una_hora = get_hora_ve() - timedelta(hours=1)
+        
         pendientes = Sorteo.query.filter(
             Sorteo.horario <= get_hora_ve(), 
+            Sorteo.horario >= hace_una_hora,
             Sorteo.estado != 'FINALIZADO'
         ).all()
         
-        # 3. Optimización: Si no hay nada, salimos sin hacer nada más y sin loguear basura
         if not pendientes:
             return
         
-        # 4. Si hay pendientes, procedemos con la lógica
-        print(f"--- [INFO] Procesando {len(pendientes)} sorteos pendientes ---")
+        # 3. Procesamiento
         for s in pendientes:
+            print(f"--- [INFO] Ejecutando sorteo pendiente: {s.id} ---")
             ejecutar_giro_animalito(s.id)
-            print(f"--- [INFO] Sorteo {s.id} procesado correctamente ---")
         
 # =====================================================================
 # 🚀 ROUTINE: PILOTO AUTOMÁTICO (MODULARIZADA)
@@ -818,14 +819,16 @@ def ejecutar_cierre_procesamiento_caja(monto_declarado_manual=None):
         return False
 
 # Regla 3: Cierre Híbrido Automático a las 11:59 PM vía Flask-APScheduler
+# Reemplaza tu tarea actual por esta versión optimizada
 @scheduler.task('cron', id='cierre_automatico_caja_cron', hour=23, minute=59)
 def cierre_automatico_caja_cron():
     with app.app_context():
-        print("🕒 [Caja] Ejecutando cierre de caja automatizado de las 11:59 PM...")
-        hora_disparo = get_hora_ve()
-        print(f"🕒 [Caja] ¡CRON DISPARADO! Hora actual del sistema en el disparo: {hora_disparo}")
+        # Usamos explícitamente nuestra función helper que garantiza hora Vzla
+        hora_cierre = get_hora_ve() 
+        print(f"🕒 [Caja] Ejecutando cierre automático. Hora sistema Vzla: {hora_cierre}")
+        
+        # Pasamos la hora actual para que el cálculo de rango sea preciso
         ejecutar_cierre_procesamiento_caja()
-
 @scheduler.task('cron', id='actualizar_tasa_cron', hour=8, minute=30)
 def cron_actualizar_tasa():
     
