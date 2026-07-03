@@ -1,0 +1,116 @@
+<!-- ==========================================================================
+   📂 templates/components/modal_recarga.html - Modal del Simulador de Pago Móvil
+   ========================================================================== -->
+<div class="modal fade" id="modalRecarga" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-0 bg-primary">
+                <h5 class="modal-title">Notificación de Pago</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 mb-4 rounded" style="background: #f8f9fa; color: #333;">
+                    <h6 class="fw-bold text-center border-bottom pb-2">DATOS DE TRANSFERENCIA / PAGO MÓVIL</h6>
+                    <div class="small mt-2">
+                        <p class="mb-1"><strong>Banco:</strong> BNC / Mercantil / Venezuela</p>
+                        <p class="mb-1"><strong>Nombre:</strong> TE APUESTO VIP 2026</p>
+                        <p class="mb-1"><strong>RIF:</strong> J-412936638</p>
+                        <p class="mb-1"><strong>Teléfono:</strong> 0424-5899131</p>
+                    </div>
+                </div>
+
+                <form id="formNotificarPago">
+                    <div class="mb-3">
+                        <label class="form-label small">Monto Pagado (Bs):</label>
+                        <input type="number" id="monto_pago" class="form-control" placeholder="Ej: 150.00" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Banco donde realizó el pago:</label>
+                        <select id="banco_destino" class="form-select">
+                            <option value="MERCANTIL">BANCO MERCANTIL</option>
+                            <option value="VENEZUELA">BANCO DE VENEZUELA</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Referencia (Últimos 6 dígitos):</label>
+                        <input type="text" id="ref_pago" class="form-control" placeholder="000000" maxlength="6" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Fecha:</label>
+                        <input type="date" id="fecha_pago" class="form-control" required>
+                    </div>
+                    <button type="button" id="btnEnviarPago" onclick="procesarRecargaSimulada()" class="btn btn-primary w-100 fw-bold">
+                        VERIFICAR PAGO AHORA
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Al cargar la página, inyectamos dinámicamente la fecha de HOY real en el calendario
+document.addEventListener("DOMContentLoaded", function() {
+    const inputFechaModal = document.getElementById('fecha_pago');
+    if (inputFechaModal) {
+        const hoy = new Date();
+        const año = hoy.getFullYear();
+        const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+        const dia = String(hoy.getDate()).padStart(2, '0');
+        
+        inputFechaModal.value = `${año}-${mes}-${dia}`;
+    }
+});
+
+function procesarRecargaSimulada() {
+    const monto = document.getElementById('monto_pago').value;
+    const ref = document.getElementById('ref_pago').value;
+    const btn = document.getElementById('btnEnviarPago');
+
+    if (!monto || monto <= 0) {
+        alert("⚠️ Por favor ingresa un monto válido.");
+        return;
+    }
+
+    const fechaSeleccionada = document.getElementById('fecha_pago').value;
+    let fechaParaBackend = null;
+    if (fechaSeleccionada) {
+        const partes = fechaSeleccionada.split('-');
+        fechaParaBackend = `${partes[2]}/${partes[1]}/${partes[0]}`; 
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+
+    const datos = {
+        user_id: {{ current_user.id | default(0) }},
+        monto: monto,
+        referencia: ref || "SIM-" + Math.floor(Math.random() * 1000000),
+        token: "VIP_TOKEN_2026_TEST",
+        fecha_personalizada: fechaParaBackend
+    };
+
+    fetch('/webhook/pagos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert("✅ ¡Saldo acreditado con éxito!");
+            location.reload(); 
+        } else {
+            alert("❌ Error: " + data.message);
+            btn.disabled = false;
+            btn.innerHTML = 'VERIFICAR PAGO AHORA';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("Ocurrió un error al conectar con el webhook.");
+        btn.disabled = false;
+        btn.innerHTML = 'VERIFICAR PAGO AHORA';
+    });
+}
+</script>

@@ -2,14 +2,21 @@
 
 {% block content %}
 <div class="container my-5">
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-6">
-            <h2 class="fw-bold text-dark">
-                <i class="fas fa-history text-primary me-2"></i>Mi Historial de Transacciones
-            </h2>
-            <p class="text-muted">Revisa el detalle de tus recargas, retiros, apuestas y premios obtenidos.</p>
+    <div class="row mb-4 align-items-center g-3">
+        <div class="col-md-7 d-flex align-items-start gap-3 flex-wrap flex-sm-nowrap">
+            <!-- Botón elegante de Volver/Inicio -->
+            <a href="{{ url_for('home') }}" class="btn btn-outline-primary d-inline-flex align-items-center gap-2 fw-bold shadow-sm px-3 py-2 rounded-3">
+                <i class="fas fa-arrow-left"></i> <span>Inicio</span>
+            </a>
+            
+            <div>
+                <h2 class="fw-bold text-white m-0 d-flex align-items-center flex-wrap gap-2">
+                    <i class="fas fa-history text-info"></i> Mi Historial de Transacciones
+                </h2>
+                <p class="text-white-50 m-0 mt-1">Revisa el detalle de tus recargas, retiros, apuestas y premios obtenidos.</p>
+            </div>
         </div>
-        <div class="col-md-6 text-md-end">
+        <div class="col-md-5 text-md-end">
             <div class="card bg-light border-0 shadow-sm d-inline-block p-3">
                 <span class="text-muted d-block small text-uppercase fw-bold">Saldo Disponible</span>
                 <span class="fs-4 fw-bold text-success">Bs. {{ "{:,.2f}".format(current_user.saldo) }}</span>
@@ -31,10 +38,10 @@
                             <th class="pe-4 py-3 text-end">Monto</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="tabla-movimientos">
                         {% if movimientos %}
                             {% for mov in movimientos %}
-                            <tr>
+                            <tr class="fila-movimiento">
                                 <td class="ps-4 text-muted small">{{ mov.fecha_transaccion }}</td>
                                 
                                 <td>
@@ -89,7 +96,7 @@
                             </tr>
                             {% endfor %}
                         {% else %}
-                            <tr>
+                            <tr id="fila-vacia-control">
                                 <td colspan="6" class="text-center py-5 text-muted">
                                     <div class="mb-3">
                                         <i class="fas fa-receipt fa-3x text-light-grid"></i>
@@ -104,13 +111,92 @@
             </div>
         </div>
     </div>
+
+    <!-- Contenedor de Paginación centrado estilo Bootstrap -->
+    <div class="d-flex justify-content-center mt-4">
+        <nav aria-label="Navegación de transacciones">
+            <ul class="pagination shadow-sm" id="paginacion-lista"></ul>
+        </nav>
+    </div>
 </div>
 
 <style>
-    .bg-success-subtle { bg-color: rgba(25, 135, 84, 0.1) !important; }
-    .bg-danger-subtle { bg-color: rgba(220, 53, 69, 0.1) !important; }
-    .bg-primary-subtle { bg-color: rgba(13, 110, 253, 0.1) !important; }
-    .bg-amber-subtle { bg-color: rgba(255, 193, 7, 0.15) !important; }
+    .bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
+    .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }
+    .bg-primary-subtle { background-color: rgba(13, 110, 253, 0.1) !important; }
+    .bg-amber-subtle { background-color: rgba(255, 193, 7, 0.15) !important; }
     .fw-mono { font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    /* Ajuste menor para compatibilidad de estados activos */
+    .page-item.active .page-link { background-color: #0d47a1 !important; border-color: #0d47a1 !important; color: #fff !important; }
+    .page-link { color: #0d47a1; cursor: pointer; }
 </style>
+
+<script>
+    const REGISTROS_POR_PAGINA = 10;
+    let paginaActual = 1;
+
+    function renderizarTablaPaginada() {
+        const filas = Array.from(document.querySelectorAll('.fila-movimiento'));
+        if (filas.length === 0) return;
+
+        const totalPaginas = Math.ceil(filas.length / REGISTROS_POR_PAGINA);
+        
+        // Validación limpia y segura para no romper índices si la data varía
+        if (paginaActual > totalPaginas) {
+            paginaActual = 1;
+        }
+
+        const inicio = (paginaActual - 1) * REGISTROS_POR_PAGINA;
+        const fin = inicio + REGISTROS_POR_PAGINA;
+
+        // Ocultar todas las filas primero, luego mostrar el rango de la página activa
+        filas.forEach(f => f.style.display = 'none');
+        filas.forEach((fila, index) => {
+            if (index >= inicio && index < fin) {
+                fila.style.display = '';
+            }
+        });
+
+        renderizarBotonesPaginacion(totalPaginas);
+    }
+
+    function renderizarBotonesPaginacion(totalPaginas) {
+        const ulContainer = document.getElementById('paginacion-lista');
+        ulContainer.innerHTML = '';
+
+        if (totalPaginas <= 1) return;
+
+        // Botón "Anterior"
+        const liAnt = document.createElement('li');
+        liAnt.className = `page-item ${paginaActual === 1 ? 'disabled' : ''}`;
+        liAnt.innerHTML = `<a class="page-link" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a>`;
+        if (paginaActual > 1) {
+            liAnt.onclick = () => { paginaActual--; renderizarTablaPaginada(); };
+        }
+        ulContainer.appendChild(liAnt);
+
+        // Páginas Numéricas
+        for (let i = 1; i <= totalPaginas; i++) {
+            const liPag = document.createElement('li');
+            liPag.className = `page-item ${i === paginaActual ? 'active' : ''}`;
+            liPag.innerHTML = `<a class="page-link">${i}</a>`;
+            liPag.onclick = () => { paginaActual = i; renderizarTablaPaginada(); };
+            ulContainer.appendChild(liPag);
+        }
+
+        // Botón "Siguiente"
+        const liSig = document.createElement('li');
+        liSig.className = `page-item ${paginaActual === totalPaginas ? 'disabled' : ''}`;
+        liSig.innerHTML = `<a class="page-link" aria-label="Next"><span aria-hidden="true">&raquo;</span></a>`;
+        if (paginaActual < totalPaginas) {
+            liSig.onclick = () => { paginaActual++; renderizarTablaPaginada(); };
+        }
+        ulContainer.appendChild(liSig);
+    }
+
+    // Inicializar la lógica al cargar el DOM de manera segura
+    document.addEventListener("DOMContentLoaded", function() {
+        renderizarTablaPaginada();
+    });
+</script>
 {% endblock %}

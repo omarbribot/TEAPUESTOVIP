@@ -30,24 +30,24 @@
         input:focus + .slider { box-shadow: 0 0 1px #22c55e; }
         input:checked + .slider:before { transform: translateX(26px); }
         .status-badge { font-weight: 600; font-size: 0.95rem; }
-/* Usamos !important para saltarnos las reglas de Bootstrap */
-.GANADA { 
-    background-color: #000000 !important; 
-    color: #ffffff !important; 
-    border: 1px solid #000 !important;
-}
 
-.PERDIDA { 
-    background-color: #e0e0e0 !important; 
-    color: #000000 !important; 
-    border: 1px solid #333 !important;
-}
+        .GANADA { 
+            background-color: #000000 !important; 
+            color: #ffffff !important; 
+            border: 1px solid #000 !important;
+        }
 
-.PENDIENTE { 
-    background-color: #ff9800 !important; 
-    color: #ffffff !important; 
-    border: 1px solid #e65100 !important;
-}
+        .PERDIDA { 
+            background-color: #e0e0e0 !important; 
+            color: #000000 !important; 
+            border: 1px solid #333 !important;
+        }
+
+        .PENDIENTE { 
+            background-color: #ff9800 !important; 
+            color: #ffffff !important; 
+            border: 1px solid #e65100 !important;
+        }
     </style>
 </head>
 <body>
@@ -57,7 +57,7 @@
         <div class="header-admin">
             <div>
                 <h1 class="h3 mb-1" style="font-weight: 700; color: #0f172a;">TEAPUESTO.VIP</h1>
-                <p class="text-muted mb-0"><i class="fa-solid_fa-user-gear me-1"></i>Panel de Control de Operaciones e Infraestructura</p>
+                <p class="text-muted mb-0"><i class="fa-solid fa-user-gear me-1"></i>Panel de Control de Operaciones e Infraestructura</p>
             </div>
             <a href="{{ url_for('home') }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Volver al Sitio</a>
         </div>
@@ -78,7 +78,7 @@
             <i class="fa-solid fa-triangle-exclamation fs-3 me-3 animate__animated animate__flash animate__infinite"></i>
             <div>
                 <strong class="fs-5">¡ALERTA FINANCIERA CRÍTICA!</strong><br>
-                La caja real disponible actual se encuentra por debajo del 40% del Fondo Semilla Mínimo estipulado para contingencias de premios. Se sugiere reducir temporalmente los límites de apuesta de animalitos en el panel inferior.
+                La caja real disponible actual se encuentra por debajo del 40% del Fondo Semilla Mínimo estipulado para contingencias de premios. Se sugeriría reducir temporalmente los límites de apuesta de animalitos en la pestaña de Sorteos.
             </div>
         </div>
         <style>
@@ -90,465 +90,493 @@
         </style>
         {% endif %}
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Recaudado (Casa)</div>
-                <div class="stat-val text-primary">{{ "{:,.2f}".format(ganancia_casa) }} Bs.</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Volumen total apuestas</div>
-                <div class="stat-val">{{ total_apuestas }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Tasa Oficial Dólar del Día</div>
-                <div class="stat-val text-success">{{ "{:,.2f}".format(config.tasa_dolar_dia) }} Bs/$</div>
-            </div>
-            <div class="stat-card" style="border-left: 4px solid {% if alerta_critica %}#dc3545{% else %}#22c55e{% endif %};">
-                <div class="stat-label">Caja Real Disponible (Bs)</div>
-                <div class="stat-val">
-                    {{ "{:,.2f}".format(config.caja_real_disponible) }} Bs.<br>
-                    <span style="font-size: 0.85rem; font-weight: normal;" class="text-muted">
-                        ≈ {{ "{:,.2f}".format(config.caja_real_disponible / config.tasa_dolar_dia if config.tasa_dolar_dia > 0 else 0) }} USD
-                    </span>
-                </div>
-            </div>
-        </div>
+        <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="finanzas-tab" data-bs-toggle="tab" data-bs-target="#tab-finanzas" type="button" role="tab" aria-controls="tab-finanzas" aria-selected="true"><i class="fa-solid fa-wallet me-2"></i>Gestión Financiera</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="mercados-tab" data-bs-toggle="tab" data-bs-target="#tab-mercados" type="button" role="tab" aria-controls="tab-mercados" aria-selected="false"><i class="fa-solid fa-gavel me-2"></i>Mercados y Predicciones</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sorteos-tab" data-bs-toggle="tab" data-bs-target="#tab-sorteos" type="button" role="tab" aria-controls="tab-sorteos" aria-selected="false"><i class="fa-solid fa-clover me-2"></i>Sorteos e IA</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="usuarios-tab" data-bs-toggle="tab" data-bs-target="#tab-usuarios" type="button" role="tab" aria-controls="tab-usuarios" aria-selected="false"><i class="fa-solid fa-users me-2"></i>Base de Usuarios</button>
+            </li>
+        </ul>
 
-        <div class="row">
-            <div class="col-md-6">
-                <div class="section shadow-sm h-100">
-                    <div class="section-title">
-                        <i class="fa-solid fa-money-bill-transfer text-success"></i>Parámetros de Caja y Bimoneda
-                    </div>
-                    <form action="{{ url_for('actualizar_parametros_caja') }}" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label font-weight-bold">Tasa Referencial del Dólar (Bs.)</label>
-                            <input type="number" step="0.01" name="tasa_dolar" class="form-control" value="{{ config.tasa_dolar_dia }}" required>
-                            <small class="text-muted">Utilizada para reportes de balance y conversión bimoneda visual.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label font-weight-bold">Fondo Semilla Óptimo Requerido (Bs.)</label>
-                            <input type="number" step="0.01" name="fondo_semilla" class="form-control" value="{{ config.fondo_semilla_optimo }}" required>
-                            <small class="text-muted">Base intocable para arranque seguro de sorteos diarios.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label font-weight-bold">Ajuste Manual de Caja Disponible (Bs.)</label>
-                            <input type="number" step="0.01" name="caja_disponible" class="form-control" value="{{ config.caja_real_disponible }}" required>
-                        </div>
-                        <button type="submit" class="btn btn-success w-100"><i class="fa-solid fa-floppy-disk me-1"></i>Guardar Parámetros Financieros</button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="section shadow-sm h-100">
-                    <div class="section-title">
-                        <i class="fa-solid fa-cash-register text-warning"></i>Cierre Híbrido: Arqueo Manual de Caja
-                    </div>
-                    <p class="text-muted" style="font-size: 0.9rem;">
-                        El sistema ejecuta un cierre automatizado a las 11:59 PM. Use este formulario si requiere realizar un corte de caja manual anticipado por contingencia declarando el efectivo/pago móvil real en mano.
-                    </p>
-                    <form action="{{ url_for('cierre_manual_caja') }}" method="POST" onsubmit="return confirm('¿Está seguro que desea ejecutar el cierre y conciliación de caja en este momento?');">
-                        <div class="bg-light p-3 rounded mb-3 border">
-                            <span class="text-muted d-block" style="font-size: 0.85rem;">Saldo de Caja en Sistema (Histórico Apertura + Flujo de Hoy):</span>
-                            <span class="fs-5 fw-bold text-dark">{{ "{:,.2f}".format(config.caja_real_disponible) }} Bs.</span>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-danger">Monto Físico/Real Contado en Caja (Bs.)</label>
-                            <div class="input-group">
-                                <span class="input-group-text">Bs.</span>
-                                <input type="number" step="0.01" name="monto_cierre_real" class="form-control form-control-lg fw-bold" placeholder="0.00" required>
-                            </div>
-                            <small class="text-muted">El sistema calculará automáticamente cualquier discrepancia contra el libro contable digital.</small>
-                        </div>
-                        <button type="submit" class="btn btn-warning w-100 text-dark fw-bold"><i class="fa-solid fa-calculator me-1"></i>Ejecutar Cierre y Conciliación Manual</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="section shadow-sm">
-            <div class="section-title">
-                <i class="fa-solid fa-file-invoice-dollar text-primary"></i>Histórico de Auditoría de Sesiones de Caja
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>Fecha Sesión</th>
-                            <th>Monto Apertura (Bs.)</th>
-                            <th>Cierre Sistema (Bs.)</th>
-                            <th>Declarado Real (Bs.)</th>
-                            <th>Discrepancia (Bs.)</th>
-                            <th>Estado Auditoría</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if sesiones_caja %}
-                            {% for sesion in sesiones_caja %}
-                            <tr>
-                                <td class="fw-bold">{{ sesion.fecha_apertura.strftime('%d/%m/%Y %I:%M %p') }}</td>
-                                <td>{{ "{:,.2f}".format(sesion.monto_apertura_bs) }} Bs.</td>
-                                <td>{{ "{:,.2f}".format(sesion.monto_cierre_sistema) }} Bs.</td>
-                                <td>{{ "{:,.2f}".format(sesion.monto_cierre_real) if sesion.monto_cierre_real is not none else 'N/A' }} Bs.</td>
-                                <td class="fw-bold {% if sesion.discrepancy < 0 %}text-danger{% elif sesion.discrepancy > 0 %}text-success{% else %}text-muted{% endif %}">
-                                    {{ "{:,.2f}".format(sesion.discrepancy) }} Bs.
-                                </td>
-                                <td>
-                                    {% if 'Déficit' in sesion.estado %}
-                                        <span class="badge bg-danger p-2"><i class="fa-solid fa-circle-minus me-1"></i>Déficit / Faltante</span>
-                                    {% elif 'Superávit' in sesion.estado %}
-                                        <span class="badge bg-success p-2"><i class="fa-solid fa-circle-plus me-1"></i>Superávit / Excedente</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary p-2"><i class="fa-solid fa-square-check me-1"></i>Cuadrado Exitoso</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-3">No hay registros de auditoría de caja completados aún.</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="section shadow-sm" style="border-top: 4px solid #3b82f6;">
-            <div class="section-title">
-                <i class="fa-solid fa-robot text-primary"></i>Módulo de Inteligencia Artificial y Piloto Automático
-            </div>
-            <div class="p-3 bg-light rounded border d-flex align-items-center justify-content-between">
-                <div>
-                    <h5 class="mb-1" style="font-weight: 600;">Controlador de Parrilla Autónoma Nocturna</h5>
-                    <p class="text-muted mb-0 small">Al activarse, el software generará automáticamente a las 11:00 PM toda la parrilla horaria de sorteos para el día de mañana.</p>
-                </div>
-                <div class="d-flex align-items-center gap-3">
-                    <span id="txt-estado-piloto" class="status-badge badge {% if config.piloto_automatico %}bg-success{% else %}bg-secondary{% endif %}">
-                        {% if config.piloto_automatico %}PILOTO ACTIVO{% else %}APAGADO INACTIVO{% endif %}
-                    </span>
-                    <label class="switch">
-                        <input type="checkbox" id="toggle-piloto" {% if config.piloto_automatico %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-6">
-                <div class="section">
-                    <div class="section-title"><i class="fa-solid fa-calendar-plus text-primary"></i>Programar Nuevo Sorteo Manual</div>
-                    <form action="{{ url_for('programar_sorteo') }}" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label">Fecha y Hora del Sorteo</label>
-                            <input type="datetime-local" name="fecha_hora" class="form-control" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-clock me-1"></i>Insertar en Parrilla Operativa</button>
-                    </form>
-                </div>
-
-                <div class="section">
-                    <div class="section-title"><i class="fa-solid fa-sliders text-secondary"></i>Límites Globales de Apuestas Reguladas</div>
-                    <form action="{{ url_for('actualizar_limites') }}" method="POST">
-                        <div class="row g-3">
-                            <div class="col-6">
-                                <label class="form-label small font-weight-bold">Mínimo Animalitos (Bs)</label>
-                                <input type="number" name="a_min" class="form-control" step="0.1" value="{{ config.animalitos_min }}">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small font-weight-bold">Máximo Animalitos (Bs)</label>
-                                <input type="number" name="a_max" class="form-control" step="0.1" value="{{ config.animalitos_max }}">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small font-weight-bold">Mínimo Predicciones (Bs)</label>
-                                <input type="number" name="m_min" class="form-control" step="0.1" value="{{ config.mercados_min }}">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small font-weight-bold">Máximo Predicciones (Bs)</label>
-                                <input type="number" name="m_max" class="form-control" step="0.1" value="{{ config.mercados_max }}">
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-outline-secondary w-100 mt-3 btn-sm"><i class="fa-solid fa-rotate me-1"></i>Actualizar Límites en Caliente</button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="section">
-                    <div class="section-title"><i class="fa-solid fa-plus-circle text-success"></i>Crear Mercado de Predicción</div>
-                    <form action="{{ url_for('add_mercado') }}" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label">Pregunta de la Condición / Evento</label>
-                            <input type="text" name="pregunta" class="form-control" placeholder="Ej: ¿Habrá más de 3 ganadores en el sorteo de las 11am?" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Fecha Límite de Apuesta (Opcional)</label>
-                            <input type="datetime-local" name="fecha_limite" class="form-control">
-                        </div>
-                        <button type="submit" class="btn btn-success w-100"><i class="fa-solid fa-bolt me-1"></i>Publicar Mercado</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-title"><i class="fa-solid fa-gavel text-warning"></i>Cierre y Resolución de Mercados Activos</div>
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead>
-                        <tr>
-                            <th>Pregunta / Condición</th>
-                            <th>Total Acumulado</th>
-                            <th>Distribución (SÍ / NO)</th>
-                            <th>Cuotas Actuales</th>
-                            <th>Acciones de Cierre Resolutivo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if mercados_stats %}
-                            {% for m in mercados_stats %}
-                            <tr>
-                                <td class="fw-bold">{{ m.pregunta }}</td>
-                                <td><span class="badge bg-light text-dark font-monospace fs-6">{{ "{:,.2f}".format(m.total) }} Bs.</span></td>
-                                <td>
-                                    <small class="text-muted d-block">SÍ: {{ "{:,.2f}".format(m.total_si) }} Bs. ({{ m.p_si }}%)</small>
-                                    <small class="text-muted d-block">NO: {{ "{:,.2f}".format(m.total_no) }} Bs. ({{ m.p_no }}%)</small>
-                                </td>
-                                <td>
-                                    <span class="badge bg-primary">SÍ: x{{ m.cuota_si }}</span>
-                                    <span class="badge bg-secondary">NO: x{{ m.cuota_no }}</span>
-                                </td>
-                                <td>
-                                    {% for mp in mercados_para_resolver %}
-                                        {% if mp.pregunta == m.pregunta %}
-                                            <div class="d-flex gap-2">
-                                                <form action="{{ url_for('resolver_mercado', id=mp.id, resultado='SI') }}" method="POST" style="display:inline;">
-                                                    <button type="submit" class="btn btn-success btn-action fw-bold" onclick="return confirm('¿Resolver como SÍ?')">Declarar SÍ</button>
-                                                </form>
-                                                <form action="{{ url_for('resolver_mercado', id=mp.id, resultado='NO') }}" method="POST" style="display:inline;">
-                                                    <button type="submit" class="btn btn-danger btn-action fw-bold" onclick="return confirm('¿Resolver como NO?')">Declarar NO</button>
-                                                </form>
-                                            </div>
-                                        {% endif %}
-                                    {% endfor %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr><td colspan="5" class="text-center text-muted">No hay mercados de predicción abiertos en este ciclo.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    <div class="card shadow mb-4" id="historial-seccion">
-            <div class="card-header py-3 bg-secondary text-white">
-                <h6 class="m-0 font-weight-bold"><i class="fas fa-history"></i> Historial de Mercados Resueltos</h6>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped" width="100%" cellspacing="0">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>ID</th>
-                                <th>Fecha Cierre</th>
-                                <th>Pregunta / Mercado</th>
-                                <th class="text-center">Resultado Final</th>
-                                <th>Total Apostado</th>
-                                <th>Detalles</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for mercado in mercados_historial %}
-                            <tr>
-                                <td><strong>#{{ mercado.id }}</strong></td>
-                                <td>{{ mercado.fecha_cierre.strftime('%d/%m/%Y %I:%M %p') if mercado.fecha_cierre else 'S/F' }}</td>
-                                <td>{{ mercado.pregunta }}</td>
-                                <td class="text-center">
-                                    {% set res = mercado.resultado_final|upper|replace('Í', 'I')|trim %}
-                                    {% if res == 'SI' %}
-                                    <span class="badge bg-success text-white px-3 py-2" style="font-weight: bold; font-size: 0.9rem; min-width: 60px; display: inline-block;">SÍ</span>
-                                    {% elif res == 'NO' %}
-                                    <span class="badge bg-danger text-white px-3 py-2" style="font-weight: bold; font-size: 0.9rem; min-width: 60px; display: inline-block;">NO</span>
-                                    {% else %}
-                                    <span class="badge bg-warning text-dark px-3 py-2" style="font-weight: bold; font-size: 0.9rem;">{{ mercado.resultado_final }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="text-success font-weight-bold">
-                                        {{ "{:,.2f}".format(mercado.total_si + mercado.total_no) }} Bs
-                                    </span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-info btn-sm text-white" onclick="verDetalleMercado({{ mercado.id }}, `{{ mercado.pregunta }}`)">
-                                        <i class="fas fa-eye"></i> Ver Apuestas
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-3">No hay mercados resueltos en el historial.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                {% if paginacion_historial and paginacion_historial.pages > 1 %}
-                <nav aria-label="Paginacion historial">
-                    <ul class="pagination justify-content-center mt-3">
-                        {% if paginacion_historial.has_prev %}
-                        <li class="page-item">
-                            <button class="page-link" onclick="cambiarPaginaHistorial({{ paginacion_historial.prev_num }})">Anterior</button>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled"><span class="page-link">Anterior</span></li>
-                        {% endif %}
-
-                        <li class="page-item disabled">
-                            <span class="page-link text-dark">Página {{ paginacion_historial.page }} de {{ paginacion_historial.pages }}</span>
-                        </li>
-
-                        {% if paginacion_historial.has_next %}
-                        <li class="page-item">
-                            <button class="page-link" onclick="cambiarPaginaHistorial({{ paginacion_historial.next_num }})">Siguiente</button>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-title"><i class="fa-solid fa-list-check text-secondary"></i>Monitoreo y Auditoría de Sorteos (Parrilla del Día)</div>
-            <div id="contenedor-tabla-sorteos">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead>
-                            <tr>
-                                <th>ID Único</th>
-                                <th>Horario Programado VZLA</th>
-                                <th>Resultado Oficial</th>
-                                <th>Estatus del Sorteo</th>
-                                <th>Auditoría Interna</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for s in sorteos %}
-                            <tr>
-                                <td class="font-monospace">#SRT-{{ s.id }}</td>
-                                <td class="fw-bold text-secondary">{{ s.horario.strftime('%d/%m/%Y — %I:%M %p') }}</td>
-                                <td>
-                                    {% if s.estado == 'FINALIZADO' %}
-                                        <span class="badge bg-dark fs-6 font-monospace p-2">
-                                            <i class="fa-solid {{ obtener_icono(s.numero) }} me-1 text-warning"></i> {{ s.numero }} ({{ s.nombre_animal }})
-                                        </span>
-                                    {% else %}
-                                        <span class="text-muted"><i class="fa-solid fa-spinner fa-spin me-1"></i> Esperando Ruleta</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if s.estado == 'FINALIZADO' %}
-                                        <span class="badge bg-light text-success border border-success status-badge">CERRADO Y PROCESADO</span>
-                                    {% else %}
-                                        <span class="badge bg-light text-primary border border-primary status-badge">ESPERANDO APUESTAS</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <button class="btn btn-outline-dark btn-sm font-monospace px-3 btn-ver-apuestas" data-id="{{ s.id }}">
-                                        <i class="fa-solid fa-magnifying-glass-dollar me-1"></i> Ver Apuestas
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                <nav aria-label="Navegación de sorteos" class="mt-4" id="navegacion-paginacion-ajax">
-                    <ul class="pagination justify-content-center">
-                        {% if paginacion_sorteos.has_prev %}
-                            <li class="page-item">
-                                <a class="page-link enlace-paginacion" href="{{ url_for('admin', page_sorteos=paginacion_sorteos.prev_num) }}" data-pagina="{{ paginacion_sorteos.prev_num }}">&laquo; Previos</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">&laquo; Previos</span></li>
-                        {% endif %}
-
-                        <li class="page-item active">
-                            <span class="page-link font-weight-bold">Página {{ paginacion_sorteos.page }} de {{ paginacion_sorteos.pages }}</span>
-                        </li>
-
-                        {% if paginacion_sorteos.has_next %}
-                            <li class="page-item">
-                                <a class="page-link enlace-paginacion" href="{{ url_for('admin', page_sorteos=paginacion_sorteos.next_num) }}" data-pagina="{{ paginacion_sorteos.next_num }}">Siguientes &raquo;</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">Siguientes &raquo;</span></li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-title"><i class="fa-solid fa-users text-dark"></i>Base de Usuarios y Recarga de Boveda</div>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th>Nombre Completo</th>
-                            <th>Cédula</th>
-                            <th>Nombre de Usuario</th>
-                            <th>Saldo en Bóveda (Bs)</th>
-                            <th>Inyección Manual de Saldo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for u in usuarios %}
-                        <tr>
-                            <td>{{ u.nombre_completo }}</td>
-                            <td class="font-monospace text-secondary">{{ u.cedula }}</td>
-                            <td class="fw-bold">@{{ u.username }}</td>
-                            <td class="text-dark fw-bold font-monospace">{{ "{:,.2f}".format(u.saldo) }} Bs.</td>
-                            <td>
-                                <form action="{{ url_for('recargar_saldo') }}" method="POST" style="display:flex; gap:5px; max-width:250px;">
-                                    <input type="hidden" name="user_id" value="{{ u.id }}">
-                                    <input type="number" step="0.01" name="monto" class="form-control form-control-sm font-monospace" placeholder="Cantidad Bs." required>
-                                    <button type="submit" class="btn btn-dark btn-sm"><i class="fa-solid fa-plus"></i></button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="tab-content" id="adminTabsContent">
             
-            <nav class="mt-3">
-                <ul class="pagination justify-content-center pagination-sm">
-                    {% if paginacion.has_prev %}
-                        <li class="page-item"><a class="page-link" href="{{ url_for('admin', page=paginacion.prev_num) }}">Anterior</a></li>
-                    {% endif %}
-                    <li class="page-item disabled"><span class="page-link">Pág {{ paginacion.page }} de {{ paginacion.pages }}</span></li>
-                    {% if paginacion.has_next %}
-                        <li class="page-item"><a class="page-link" href="{{ url_for('admin', page=paginacion.next_num) }}">Siguiente</a></li>
-                    {% endif %}
-                </ul>
-            </nav>
-        </div>
+            <div class="tab-pane fade show active" id="tab-finanzas" role="tabpanel" aria-labelledby="finanzas-tab">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Recaudado (Casa)</div>
+                        <div class="stat-val text-primary">{{ "{:,.2f}".format(ganancia_casa) }} Bs.</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Volumen total apuestas</div>
+                        <div class="stat-val">{{ total_apuestas }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Tasa Oficial Dólar del Día</div>
+                        <div class="stat-val text-success">{{ "{:,.2f}".format(config.tasa_dolar_dia) }} Bs/$</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid {% if alerta_critica %}#dc3545{% else %}#22c55e{% endif %};">
+                        <div class="stat-label">Caja Real Disponible (Bs)</div>
+                        <div class="stat-val">
+                            {{ "{:,.2f}".format(config.caja_real_disponible) }} Bs.<br>
+                            <span style="font-size: 0.85rem; font-weight: normal;" class="text-muted">
+                                ≈ {{ "{:,.2f}".format(config.caja_real_disponible / config.tasa_dolar_dia if config.tasa_dolar_dia > 0 else 0) }} USD
+                            </span>
+                        </div>
+                    </div>
+                </div>
 
-    </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="section shadow-sm h-100">
+                            <div class="section-title">
+                                <i class="fa-solid fa-money-bill-transfer text-success"></i>Parámetros de Caja y Bimoneda
+                            </div>
+                            <form action="{{ url_for('actualizar_parametros_caja') }}" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label font-weight-bold">Tasa Referencial del Dólar (Bs.)</label>
+                                    <input type="number" step="0.01" name="tasa_dolar" class="form-control" value="{{ config.tasa_dolar_dia }}" required>
+                                    <small class="text-muted">Utilizada para reportes de balance y conversión bimoneda visual.</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label font-weight-bold">Fondo Semilla Óptimo Requerido (Bs.)</label>
+                                    <input type="number" step="0.01" name="fondo_semilla" class="form-control" value="{{ config.fondo_semilla_optimo }}" required>
+                                    <small class="text-muted">Base intocable para arranque seguro de sorteos diarios.</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label font-weight-bold">Ajuste Manual de Caja Disponible (Bs.)</label>
+                                    <input type="number" step="0.01" name="caja_disponible" class="form-control" value="{{ config.caja_real_disponible }}" required>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100"><i class="fa-solid fa-floppy-disk me-1"></i>Guardar Parámetros Financieros</button>
+                            </form>
+                        </div>
+                    </div>
 
-    <div class="modal fade" id="modalVerApuestas" tabindex="-1" aria-labelledby="modalVerApuestasLabel" aria-hidden="true">
+                    <div class="col-md-6">
+                        <div class="section shadow-sm h-100">
+                            <div class="section-title">
+                                <i class="fa-solid fa-cash-register text-warning"></i>Cierre Híbrido: Arqueo Manual de Caja
+                            </div>
+                            <p class="text-muted" style="font-size: 0.9rem;">
+                                El sistema ejecuta un cierre automatizado a las 11:59 PM. Use este formulario si requiere realizar un corte de caja manual anticipado por contingencia declarando el efectivo/pago móvil real en mano.
+                            </p>
+                            <form action="{{ url_for('cierre_manual_caja') }}" method="POST" onsubmit="return confirm('¿Está seguro que desea ejecutar el cierre y conciliación de caja en este momento?');">
+                                <div class="bg-light p-3 rounded mb-3 border">
+                                    <span class="text-muted d-block" style="font-size: 0.85rem;">Saldo de Caja en Sistema (Histórico Apertura + Flujo de Hoy):</span>
+                                    <span class="fs-5 fw-bold text-dark">{{ "{:,.2f}".format(config.caja_real_disponible) }} Bs.</span>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-danger">Monto Físico/Real Contado en Caja (Bs.)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">Bs.</span>
+                                        <input type="number" step="0.01" name="monto_cierre_real" class="form-control form-control-lg fw-bold" placeholder="0.00" required>
+                                    </div>
+                                    <small class="text-muted">El sistema calculará automáticamente cualquier discrepancia contra el libro contable digital.</small>
+                                </div>
+                                <button type="submit" class="btn btn-warning w-100 text-dark fw-bold"><i class="fa-solid fa-calculator me-1"></i>Ejecutar Cierre y Conciliación Manual</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section shadow-sm mt-4">
+                    <div class="section-title">
+                        <i class="fa-solid fa-file-invoice-dollar text-primary"></i>Histórico de Auditoría de Sesiones de Caja
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Fecha Sesión</th>
+                                    <th>Monto Apertura (Bs.)</th>
+                                    <th>Cierre Sistema (Bs.)</th>
+                                    <th>Declarado Real (Bs.)</th>
+                                    <th>Discrepancia (Bs.)</th>
+                                    <th>Estado Auditoría</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if sesiones_caja %}
+                                    {% for sesion in sesiones_caja %}
+                                    <tr>
+                                        <td class="fw-bold">{{ sesion.fecha_apertura.strftime('%d/%m/%Y %I:%M %p') }}</td>
+                                        <td>{{ "{:,.2f}".format(sesion.monto_apertura_bs) }} Bs.</td>
+                                        <td>{{ "{:,.2f}".format(sesion.monto_cierre_sistema) }} Bs.</td>
+                                        <td>{{ "{:,.2f}".format(sesion.monto_cierre_real) if sesion.monto_cierre_real is not none else 'N/A' }} Bs.</td>
+                                        <td class="fw-bold {% if sesion.discrepancy < 0 %}text-danger{% elif sesion.discrepancy > 0 %}text-success{% else %}text-muted{% endif %}">
+                                            {{ "{:,.2f}".format(sesion.discrepancy) }} Bs.
+                                        </td>
+                                        <td>
+                                            {% if 'Déficit' in sesion.estado %}
+                                                <span class="badge bg-danger p-2"><i class="fa-solid fa-circle-minus me-1"></i>Déficit / Faltante</span>
+                                            {% elif 'Superávit' in sesion.estado %}
+                                                <span class="badge bg-success p-2"><i class="fa-solid fa-circle-plus me-1"></i>Superávit / Excedente</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary p-2"><i class="fa-solid fa-square-check me-1"></i>Cuadrado Exitoso</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-3">No hay registros de auditoría de caja completados aún.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-mercados" role="tabpanel" aria-labelledby="mercados-tab">
+                <div class="row">
+                    <div class="col-md-12 mb-4">
+                        <div class="section shadow-sm">
+                            <div class="section-title"><i class="fa-solid fa-plus-circle text-success"></i>Crear Mercado de Predicción</div>
+                            <form action="{{ url_for('add_mercado') }}" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label">Pregunta de la Condición / Evento</label>
+                                    <input type="text" name="pregunta" class="form-control" placeholder="Ej: ¿Habrá más de 3 ganadores en el sorteo de las 11am?" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Fecha Límite de Apuesta (Opcional)</label>
+                                    <input type="datetime-local" name="fecha_limite" class="form-control">
+                                </div>
+                                <button type="submit" class="btn btn-success w-100"><i class="fa-solid fa-bolt me-1"></i>Publicar Mercado</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section shadow-sm">
+                    <div class="section-title"><i class="fa-solid fa-gavel text-warning"></i>Cierre y Resolución de Mercados Activos</div>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Pregunta / Condición</th>
+                                    <th>Total Acumulado</th>
+                                    <th>Distribución (SÍ / NO)</th>
+                                    <th>Cuotas Actuales</th>
+                                    <th>Acciones de Cierre Resolutivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if mercados_stats %}
+                                    {% for m in mercados_stats %}
+                                    <tr>
+                                        <td class="fw-bold">{{ m.pregunta }}</td>
+                                        <td><span class="badge bg-light text-dark font-monospace fs-6">{{ "{:,.2f}".format(m.total) }} Bs.</span></td>
+                                        <td>
+                                            <small class="text-muted d-block">SÍ: {{ "{:,.2f}".format(m.total_si) }} Bs. ({{ m.p_si }}%)</small>
+                                            <small class="text-muted d-block">NO: {{ "{:,.2f}".format(m.total_no) }} Bs. ({{ m.p_no }}%)</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">SÍ: x{{ m.cuota_si }}</span>
+                                            <span class="badge bg-secondary">NO: x{{ m.cuota_no }}</span>
+                                        </td>
+                                        <td>
+                                            {% for mp in mercados_para_resolver %}
+                                                {% if mp.pregunta == m.pregunta %}
+                                                    <div class="d-flex gap-2">
+                                                        <form action="{{ url_for('resolver_mercado', id=mp.id, resultado='SI') }}" method="POST" style="display:inline;">
+                                                            <button type="submit" class="btn btn-success btn-action fw-bold" onclick="return confirm('¿Resolver como SÍ?')">Declarar SÍ</button>
+                                                        </form>
+                                                        <form action="{{ url_for('resolver_mercado', id=mp.id, resultado='NO') }}" method="POST" style="display:inline;">
+                                                            <button type="submit" class="btn btn-danger btn-action fw-bold" onclick="return confirm('¿Resolver como NO?')">Declarar NO</button>
+                                                        </form>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr><td colspan="5" class="text-center text-muted">No hay mercados de predicción abiertos en este ciclo.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card shadow mb-4" id="historial-seccion">
+                    <div class="card-header py-3 bg-secondary text-white">
+                        <h6 class="m-0 font-weight-bold"><i class="fas fa-history"></i> Historial de Mercados Resueltos</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped" width="100%" cellspacing="0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha Cierre</th>
+                                        <th>Pregunta / Mercado</th>
+                                        <th class="text-center">Resultado Final</th>
+                                        <th>Total Apostado</th>
+                                        <th>Detalles</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mercado in mercados_historial %}
+                                    <tr>
+                                        <td><strong>#{{ mercado.id }}</strong></td>
+                                        <td>{{ mercado.fecha_cierre.strftime('%d/%m/%Y %I:%M %p') if mercado.fecha_cierre else 'S/F' }}</td>
+                                        <td>{{ mercado.pregunta }}</td>
+                                        <td class="text-center">
+                                            {% set res = mercado.resultado_final|upper|replace('Í', 'I')|trim %}
+                                            {% if res == 'SI' %}
+                                            <span class="badge bg-success text-white px-3 py-2" style="font-weight: bold; font-size: 0.9rem; min-width: 60px; display: inline-block;">SÍ</span>
+                                            {% elif res == 'NO' %}
+                                            <span class="badge bg-danger text-white px-3 py-2" style="font-weight: bold; font-size: 0.9rem; min-width: 60px; display: inline-block;">NO</span>
+                                            {% else %}
+                                            <span class="badge bg-warning text-dark px-3 py-2" style="font-weight: bold; font-size: 0.9rem;">{{ mercado.resultado_final }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="text-success font-weight-bold">
+                                                {{ "{:,.2f}".format(mercado.total_si + mercado.total_no) }} Bs
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-info btn-sm text-white" onclick="verDetalleMercado({{ mercado.id }}, `{{ mercado.pregunta }}`)">
+                                                <i class="fas fa-eye"></i> Ver Apuestas
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-3">No hay mercados resueltos en el historial.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% if paginacion_historial and paginacion_historial.pages > 1 %}
+                        <nav aria-label="Paginacion historial">
+                            <ul class="pagination justify-content-center mt-3">
+                                {% if paginacion_historial.has_prev %}
+                                <li class="page-item">
+                                    <button class="page-link" onclick="cambiarPaginaHistorial({{ paginacion_historial.prev_num }})">Anterior</button>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                                {% endif %}
+
+                                <li class="page-item disabled">
+                                    <span class="page-link text-dark">Página {{ paginacion_historial.page }} de {{ paginacion_historial.pages }}</span>
+                                </li>
+
+                                {% if paginacion_historial.has_next %}
+                                <li class="page-item">
+                                    <button class="page-link" onclick="cambiarPaginaHistorial({{ paginacion_historial.next_num }})">Siguiente</button>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-sorteos" role="tabpanel" aria-labelledby="sorteos-tab">
+                <div class="section shadow-sm" style="border-top: 4px solid #3b82f6;">
+                    <div class="section-title">
+                        <i class="fa-solid fa-robot text-primary"></i>Módulo de Inteligencia Artificial y Piloto Automático
+                    </div>
+                    <div class="p-3 bg-light rounded border d-flex align-items-center justify-content-between">
+                        <div>
+                            <h5 class="mb-1" style="font-weight: 600;">Controlador de Parrilla Autónoma Nocturna</h5>
+                            <p class="text-muted mb-0 small">Al activarse, el software generará automáticamente a las 11:00 PM toda la parrilla horaria de sorteos para el día de mañana.</p>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span id="txt-estado-piloto" class="status-badge badge {% if config.piloto_automatico %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if config.piloto_automatico %}PILOTO ACTIVO{% else %}APAGADO INACTIVO{% endif %}
+                            </span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-piloto" {% if config.piloto_automatico %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="section shadow-sm h-100">
+                            <div class="section-title"><i class="fa-solid fa-calendar-plus text-primary"></i>Programar Nuevo Sorteo Manual</div>
+                            <form action="{{ url_for('programar_sorteo') }}" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label">Fecha y Hora del Sorteo</label>
+                                    <input type="datetime-local" name="fecha_hora" class="form-control" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-clock me-1"></i>Insertar en Parrilla Operativa</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="section shadow-sm h-100">
+                            <div class="section-title"><i class="fa-solid fa-sliders text-secondary"></i>Límites Globales de Apuestas Reguladas</div>
+                            <form action="{{ url_for('actualizar_limites') }}" method="POST">
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <label class="form-label small font-weight-bold">Mínimo Animalitos (Bs)</label>
+                                        <input type="number" name="a_min" class="form-control" step="0.1" value="{{ config.animalitos_min }}">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small font-weight-bold">Máximo Animalitos (Bs)</label>
+                                        <input type="number" name="a_max" class="form-control" step="0.1" value="{{ config.animalitos_max }}">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small font-weight-bold">Mínimo Predicciones (Bs)</label>
+                                        <input type="number" name="m_min" class="form-control" step="0.1" value="{{ config.mercados_min }}">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small font-weight-bold">Máximo Predicciones (Bs)</label>
+                                        <input type="number" name="m_max" class="form-control" step="0.1" value="{{ config.mercados_max }}">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-outline-secondary w-100 mt-3 btn-sm"><i class="fa-solid fa-rotate me-1"></i>Actualizar Límites en Caliente</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section shadow-sm mt-4">
+                    <div class="section-title"><i class="fa-solid fa-list-check text-secondary"></i>Monitoreo y Auditoría de Sorteos (Parrilla del Día)</div>
+                    <div id="contenedor-tabla-sorteos">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>ID Único</th>
+                                        <th>Horario Programado VZLA</th>
+                                        <th>Resultado Oficial</th>
+                                        <th>Estatus del Sorteo</th>
+                                        <th>Auditoría Interna</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for s in sorteos %}
+                                    <tr>
+                                        <td class="font-monospace">#SRT-{{ s.id }}</td>
+                                        <td class="fw-bold text-secondary">{{ s.horario.strftime('%d/%m/%Y — %I:%M %p') }}</td>
+                                        <td>
+                                            {% if s.estado == 'FINALIZADO' %}
+                                                <span class="badge bg-dark fs-6 font-monospace p-2">
+                                                    <i class="fa-solid {{ obtener_icono(s.numero) }} me-1 text-warning"></i> {{ s.numero }} ({{ s.nombre_animal }})
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted"><i class="fa-solid fa-spinner fa-spin me-1"></i> Esperando Ruleta</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if s.estado == 'FINALIZADO' %}
+                                                <span class="badge bg-light text-success border border-success status-badge">CERRADO Y PROCESADO</span>
+                                            {% else %}
+                                                <span class="badge bg-light text-primary border border-primary status-badge">ESPERANDO APUESTAS</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-outline-dark btn-sm font-monospace px-3 btn-ver-apuestas" data-id="{{ s.id }}">
+                                                <i class="fa-solid fa-magnifying-glass-dollar me-1"></i> Ver Apuestas
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <nav aria-label="Navegación de sorteos" class="mt-4" id="navegacion-paginacion-ajax">
+                            <ul class="pagination justify-content-center">
+                                {% if paginacion_sorteos.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link enlace-paginacion" href="{{ url_for('admin', page_sorteos=paginacion_sorteos.prev_num) }}" data-pagina="{{ paginacion_sorteos.prev_num }}">&laquo; Previos</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">&laquo; Previos</span></li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link font-weight-bold">Página {{ paginacion_sorteos.page }} de {{ paginacion_sorteos.pages }}</span>
+                                </li>
+
+                                {% if paginacion_sorteos.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link enlace-paginacion" href="{{ url_for('admin', page_sorteos=paginacion_sorteos.next_num) }}" data-pagina="{{ paginacion_sorteos.next_num }}">Siguientes &raquo;</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">Siguientes &raquo;</span></li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-usuarios" role="tabpanel" aria-labelledby="usuarios-tab">
+                <div class="section shadow-sm">
+                    <div class="section-title"><i class="fa-solid fa-users text-dark"></i>Base de Usuarios y Recarga de Bóveda</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Nombre Completo</th>
+                                    <th>Cédula</th>
+                                    <th>Nombre de Usuario</th>
+                                    <th>Saldo en Bóveda (Bs)</th>
+                                    <th>Inyección Manual de Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in usuarios %}
+                                <tr>
+                                    <td>{{ u.nombre_completo }}</td>
+                                    <td class="font-monospace text-secondary">{{ u.cedula }}</td>
+                                    <td class="fw-bold">@{{ u.username }}</td>
+                                    <td class="text-dark fw-bold font-monospace">{{ "{:,.2f}".format(u.saldo) }} Bs.</td>
+                                    <td>
+                                        <form action="{{ url_for('recargar_saldo') }}" method="POST" style="display:flex; gap:5px; max-width:250px;">
+                                            <input type="hidden" name="user_id" value="{{ u.id }}">
+                                            <input type="number" step="0.01" name="monto" class="form-control form-control-sm font-monospace" placeholder="Cantidad Bs." required>
+                                            <button type="submit" class="btn btn-dark btn-sm"><i class="fa-solid fa-plus"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <nav class="mt-3">
+                        <ul class="pagination justify-content-center pagination-sm">
+                            {% if paginacion.has_prev %}
+                                <li class="page-item"><a class="page-link" href="{{ url_for('admin', page=paginacion.prev_num) }}">Anterior</a></li>
+                            {% endif %}
+                            <li class="page-item disabled"><span class="page-link">Pág {{ paginacion.page }} de {{ paginacion.pages }}</span></li>
+                            {% if paginacion.has_next %}
+                                <li class="page-item"><a class="page-link" href="{{ url_for('admin', page=paginacion.next_num) }}">Siguiente</a></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+
+        </div> </div> <div class="modal fade" id="modalVerApuestas" tabindex="-1" aria-labelledby="modalVerApuestasLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title" id="modalVerApuestasLabel"><i class="fa-solid fa-magnifying-glass-dollar me-2"></i>Libro de Apuestas Vinculadas al Sorteo</h5>
+                    <h5 class="modal-title" id="modalVerApuestasLabel"><i class="fa-solid fa-magnifying-glass-dollar me-2"></i>Libro de Apuestas Vinculadas al Sorte5</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -562,84 +590,109 @@
                                     <th>Estatus</th>
                                 </tr>
                             </thead>
-                            <tbody id="cuerpo-tabla-modal">
-                                </tbody>
+                            <tbody id="cuerpo-tabla-modal"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-<div class="modal fade" id="modalDetalleMercado" tabindex="-1" aria-labelledby="modalMercadoTitulo" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title" id="modalMercadoTitulo">Apuestas del Mercado</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped" width="100%" cellspacing="0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Usuario</th>
-                                <th>Opción Elegida</th>
-                                <th>Monto Apostado</th>
-                                <th>Estatus del Premio</th>
-                            </tr>
-                        </thead>
-                        <tbody id="modalMercadoCuerpo">
-                            </tbody>
-                    </table>
+
+    <div class="modal fade" id="modalDetalleMercado" tabindex="-1" aria-labelledby="modalMercadoTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="modalMercadoTitulo">Apuestas del Mercado</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar Auditoría</button>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" width="100%" cellspacing="0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Usuario</th>
+                                    <th>Opción Elegida</th>
+                                    <th>Monto Apostado</th>
+                                    <th>Estatus del Premio</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalMercadoCuerpo"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar Auditoría</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // =====================================================================
+            // PERSISTENCIA DE PESTAÑAS TRAS RECARGAR LA PÁGINA
+            // =====================================================================
+            const activeTab = localStorage.getItem('selectedAdminTab');
+            if (activeTab) {
+                // Buscamos el botón de la pestaña guardada
+                const tabButton = document.querySelector(`#adminTabs button[data-bs-target="${activeTab}"]`);
+                if (tabButton) {
+                    // Creamos o recuperamos la instancia de Bootstrap Tab y la mostramos
+                    const tab = new bootstrap.Tab(tabButton);
+                    tab.show();
+                }
+            }
+
+            // Escuchamos el evento de Bootstrap cuando se cambia de pestaña para guardar la nueva elección
+            const tabLinks = document.querySelectorAll('#adminTabs button[data-bs-toggle="tab"]');
+            tabLinks.forEach(tabLink => {
+                tabLink.addEventListener('shown.bs.tab', function (e) {
+                    const targetId = e.target.getAttribute('data-bs-target');
+                    localStorage.setItem('selectedAdminTab', targetId);
+                });
+            });
+            // =====================================================================
             // LÓGICA ASÍNCRONA SWITCH DEL PILOTO AUTOMÁTICO
             const toggle = document.getElementById('toggle-piloto');
             const txtEstado = document.getElementById('txt-estado-piloto');
 
-            toggle.addEventListener('change', function() {
-                const activo = this.checked;
-                
-                fetch('/admin/configuracion', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ activo: activo })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if(data.status === 'success') {
-                        if(activo) {
-                            txtEstado.className = "status-badge badge bg-success";
-                            txtEstado.innerText = "PILOTO ACTIVO";
+            if(toggle) {
+                toggle.addEventListener('change', function() {
+                    const activo = this.checked;
+                    
+                    fetch('/admin/configuracion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ activo: activo })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.status === 'success') {
+                            if(activo) {
+                                txtEstado.className = "status-badge badge bg-success";
+                                txtEstado.innerText = "PILOTO ACTIVO";
+                            } else {
+                                txtEstado.className = "status-badge badge bg-secondary";
+                                txtEstado.innerText = "APAGADO INACTIVO";
+                            }
+                            console.log("🤖 [Piloto] Estado cambiado con éxito:", data.mensaje);
                         } else {
-                            txtEstado.className = "status-badge badge bg-secondary";
-                            txtEstado.innerText = "APAGADO INACTIVO";
+                            alert("Error al actualizar piloto automático");
+                            this.checked = !activo; 
                         }
-                        console.log("🤖 [Piloto] Estado cambiado con éxito:", data.mensaje);
-                    } else {
-                        alert("Error al actualizar piloto automático");
-                        this.checked = !activo; 
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    this.checked = !activo;
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        this.checked = !activo;
+                    });
                 });
-            });
+            }
 
             // GESTIÓN DEL MODAL COMPLEMENTARIO DE AUDITORÍA DE APUESTAS
             const modalEl = document.getElementById('modalVerApuestas');
-            const modalBootstrap = new bootstrap.Modal(modalEl);
+            const modalBootstrap = modalEl ? new bootstrap.Modal(modalEl) : null;
             const cuerpoTabla = document.getElementById('cuerpo-tabla-modal');
 
             document.addEventListener('click', function(e) {
@@ -648,7 +701,7 @@
                     const sorteoId = boton.getAttribute('data-id');
                     
                     cuerpoTabla.innerHTML = '<tr><td colspan="4" class="text-center"><i class="fa-solid fa-spinner fa-spin me-2"></i>Consultando base de datos...</td></tr>';
-                    modalBootstrap.show();
+                    if(modalBootstrap) modalBootstrap.show();
 
                     fetch(`/detalle_sorteo_animalito/${sorteoId}`)
                         .then(res => res.json())
@@ -656,11 +709,7 @@
                             if (data.status === 'success' && data.apuestas.length > 0) {
                                 cuerpoTabla.innerHTML = '';
                                 data.apuestas.forEach(ap => {
-                                    // 1. Elegimos SOLO la clase de estado (GANADA, PERDIDA, PENDIENTE)
-                                    // Ya no usamos bg-success ni similares para evitar el conflicto
-                                    let claseEstado = ap.estado; // Esto será "GANADA", "PERDIDA" o "PENDIENTE"
-
-                                    // 2. Lógica para ocultar el nombre en PAR/IMPAR
+                                    let claseEstado = ap.estado; 
                                     let esEspecial = (ap.animal_elegido === 'PAR' || ap.animal_elegido === 'IMPAR');
                                     let contenidoNombre = esEspecial ? '' : `<span class="badge bg-light text-dark border">${ap.nombre_animal || ''}</span>`;
 
@@ -722,7 +771,6 @@
             function refrescarSorteosAutomatico() {
                 const parametrosURL = new URLSearchParams(window.location.search);
                 let paginaActual = parametrosURL.get('page_sorteos') || 1;
-
                 const urlConPagina = `${window.location.pathname}?page_sorteos=${paginaActual}`;
 
                 fetch(urlConPagina)
@@ -735,99 +783,86 @@
                         const contenedorNuevo = doc.getElementById("contenedor-tabla-sorteos");
                         
                         if (contenedorViejo && contenedorNuevo) {
-                            // Se preserva el html interno de los sorteos actualizados
                             contenedorViejo.innerHTML = contenedorNuevo.innerHTML;
                             console.log(`✅ [Auto-Refresco] Sorteos sincronizados en la página ${paginaActual}`);
                         }
                     })
                     .catch(error => console.error("Error en el auto-refresco de sorteos:", error));
             }
-            // Sincronización automática de ruletas cada 15 segundos sin interrumpir clics
             setInterval(refrescarSorteosAutomatico, 15000);
         });
 
-    function verDetalleMercado(mercadoId, pregunta) {
-    // Cambiar el título del modal con la pregunta del mercado
-    document.getElementById('modalMercadoTitulo').innerText = "Apuestas: " + pregunta;
-    
-    // Limpiar la tabla interna del modal antes de cargar
-    const tablaCuerpo = document.getElementById('modalMercadoCuerpo');
-    tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando apuestas...</td></tr>';
-    
-    // Inicializar y abrir el modal usando la API nativa de Bootstrap 5 (Sin usar jQuery $)
-    var myModal = new bootstrap.Modal(document.getElementById('modalDetalleMercado'));
-    myModal.show();
+        function verDetalleMercado(mercadoId, pregunta) {
+            document.getElementById('modalMercadoTitulo').innerText = "Apuestas: " + pregunta;
+            const tablaCuerpo = document.getElementById('modalMercadoCuerpo');
+            tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando apuestas...</td></tr>';
+            
+            var myModal = new bootstrap.Modal(document.getElementById('modalDetalleMercado'));
+            myModal.show();
 
-    // Buscar los datos reales mediante fetch
-    fetch('/detalle_mercado_apuestas/' + mercadoId)
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success' && data.apuestas.length > 0) {
-                tablaCuerpo.innerHTML = '';
-                data.apuestas.forEach(ap => {
-                    let badgeEstado = '';
-                    if (ap.estado === 'GANADA') {
-                        badgeEstado = '<span class="badge bg-success text-white">Ganó</span>';
-                    } else if (ap.estado === 'PERDIDA') {
-                        badgeEstado = '<span class="badge bg-danger text-white">Perdió</span>';
+            fetch('/detalle_mercado_apuestas/' + mercadoId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success' && data.apuestas.length > 0) {
+                        tablaCuerpo.innerHTML = '';
+                        data.apuestas.forEach(ap => {
+                            let badgeEstado = '';
+                            if (ap.estado === 'GANADA') {
+                                badgeEstado = '<span class="badge bg-success text-white">Ganó</span>';
+                            } else if (ap.estado === 'PERDIDA') {
+                                badgeEstado = '<span class="badge bg-danger text-white">Perdió</span>';
+                            } else {
+                                badgeEstado = '<span class="badge bg-warning text-dark">Pendiente</span>';
+                            }
+                            
+                            let opcionBadge = ap.opcion_elegida === 'SI' ? '<span class="badge bg-success text-white px-2">SÍ</span>' : '<span class="badge bg-danger text-white px-2">NO</span>';
+                            
+                            tablaCuerpo.innerHTML += `
+                                <tr>
+                                    <td><strong>${ap.username}</strong></td>
+                                    <td>${opcionBadge}</td>
+                                    <td><span class="font-weight-bold text-dark">${parseFloat(ap.monto).toFixed(2)} Bs</span></td>
+                                    <td>${badgeEstado}</td>
+                                </tr>
+                            `;
+                        });
                     } else {
-                        badgeEstado = '<span class="badge bg-warning text-dark">Pendiente</span>';
+                        tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Ningún usuario apostó en este mercado.</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3"><i class="fas fa-exclamation-triangle"></i> Error al cargar la auditoría.</td></tr>';
+                });
+        } 
+
+        function cambiarPaginaHistorial(numeroPagina) {
+            const tbody = document.getElementById('historial-seccion').querySelector('tbody');
+            const paginationContainer = document.getElementById('historial-seccion').querySelector('nav');
+            
+            tbody.style.opacity = '0.5';
+
+            fetch('?page_historial=' + numeroPagina)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    const nuevoTbody = doc.getElementById('historial-seccion').querySelector('tbody');
+                    const nuevaPaginacion = doc.getElementById('historial-seccion').querySelector('nav');
+                    
+                    tbody.innerHTML = nuevoTbody.innerHTML;
+                    if (paginationContainer && nuevaPaginacion) {
+                        paginationContainer.innerHTML = nuevaPaginacion.innerHTML;
                     }
                     
-                    let opcionBadge = ap.opcion_elegida === 'SI' ? '<span class="badge bg-success text-white px-2">SÍ</span>' : '<span class="badge bg-danger text-white px-2">NO</span>';
-                    
-                    tablaCuerpo.innerHTML += `
-                        <tr>
-                            <td><strong>${ap.username}</strong></td>
-                            <td>${opcionBadge}</td>
-                            <td><span class="font-weight-bold text-dark">${parseFloat(ap.monto).toFixed(2)} Bs</span></td>
-                            <td>${badgeEstado}</td>
-                        </tr>
-                    `;
+                    tbody.style.opacity = '1';
+                })
+                .catch(error => {
+                    console.error("Error al paginar el historial:", error);
+                    tbody.style.opacity = '1';
                 });
-            } else {
-                tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Ningún usuario apostó en este mercado.</td></tr>';
-            }
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            tablaCuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3"><i class="fas fa-exclamation-triangle"></i> Error al cargar la auditoría.</td></tr>';
-        });
-} 
-    function cambiarPaginaHistorial(numeroPagina) {
-    // 1. Buscamos el contenedor de la tabla para cambiar su contenido mediante fetch
-    const tbody = document.getElementById('historial-seccion').querySelector('tbody');
-    const paginationContainer = document.getElementById('historial-seccion').querySelector('nav');
-    
-    // Opcional: mostrar un estado visual de carga rápido en la tabla
-    tbody.style.opacity = '0.5';
-
-    // 2. Hacemos la petición a la misma ruta de administración pero pidiendo la página por AJAX
-    fetch('?page_historial=' + numeroPagina)
-        .then(response => response.text())
-        .then(html => {
-            // Creamos un documento temporal para parsear el HTML recibido
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            // Extraemos la nueva tabla y la nueva paginación correspondientes a esa página
-            const nuevoTbody = doc.getElementById('historial-seccion').querySelector('tbody');
-            const nuevaPaginacion = doc.getElementById('historial-seccion').querySelector('nav');
-            
-            // Inyectamos el nuevo contenido de forma limpia y transparente
-            tbody.innerHTML = nuevoTbody.innerHTML;
-            if (paginationContainer && nuevaPaginacion) {
-                paginationContainer.innerHTML = nuevaPaginacion.innerHTML;
-            }
-            
-            // Restauramos la opacidad
-            tbody.style.opacity = '1';
-        })
-        .catch(error => {
-            console.error("Error al paginar el historial:", error);
-            tbody.style.opacity = '1';
-        });
-}
+        }
     </script>
 </body>
 </html>

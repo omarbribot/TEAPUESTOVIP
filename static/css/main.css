@@ -1,0 +1,281 @@
+/* ==========================================================================
+   📂 static/css/main.css - Estilos Globales de TEAPUESTOVIP.COM
+   ========================================================================== */
+
+:root {
+    --bg-body: #020d1a;           
+    --bg-card: #1e293b;           
+    --bg-inner: #1a2233;           
+    --text-main: #f8fafc;         
+    --text-muted: #94a3b8;        
+    --accent-primary: #38bdf8;    
+    --border-color: #334155;      
+    --voto-si: #4ed386;           
+    --voto-no: #ce5c5c;           
+}
+
+body { 
+    background-color: var(--bg-body); 
+    color: var(--text-main); 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    -webkit-font-smoothing: antialiased;
+}
+
+.hero-header { 
+    background: linear-gradient(135deg, #1e293b 0%, #1a2233 100%); 
+    border-bottom: 1px solid var(--border-color);
+    padding: 40px 0; 
+    margin-bottom: 30px; 
+}
+
+.mercado-card { 
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 20px; 
+    transition: transform 0.3s, box-shadow 0.3s; 
+    color: var(--text-main); 
+}
+
+.mercado-card:hover { 
+    transform: translateY(-5px); 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    border-color: var(--accent-primary) !important;
+}
+
+.mercado-card .card-title {
+    color: var(--text-main) !important; 
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3); 
+}
+
+.zona-progreso { 
+    background-color: var(--bg-inner) !important; 
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.mercado-card .text-success { color: var(--voto-si) !important; font-weight: bold; }
+.mercado-card .text-danger { color: var(--voto-no) !important; font-weight: bold; }
+.progress { background-color: #0f172a; height: 12px; border-radius: 10px; overflow: hidden; }
+.progress-bar.bg-success { background-color: var(--voto-si) !important; }
+.progress-bar.bg-danger { background-color: var(--voto-no) !important; }
+
+.mercado-card .btn-success { background-color: #166534 !important; border: none; font-weight: bold; }
+.mercado-card .btn-danger { background-color: #991b1b !important; border: none; font-weight: bold; }
+
+.input-group-text, .form-control {
+    background-color: #0f172a !important;
+    border-color: var(--border-color) !important;
+    color: white !important;
+}
+
+.badge.bg-primary {
+    background-color: var(--accent-primary) !important;
+    color: #020d1a;
+    font-weight: bold;
+}
+
+.fecha-cierre-box {
+    font-size: 0.85rem;
+    color: #fbbf24; 
+    background: rgba(251, 191, 36, 0.1);
+    padding: 6px 12px;
+    border-radius: 10px;
+    display: inline-block;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.animalito-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 15px;
+}
+
+.badge-cuota {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-primary);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.estimado-texto {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 5px;
+    display: block;
+}
+
+.animalito-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border-color: #28a745 !important;
+}
+
+.cartilla-scroll-container {
+    background: var(--bg-inner);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    padding: 15px;
+    max-height: 450px; 
+    overflow-y: auto;
+}
+
+.grid-animalitos-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(45px, 1fr)); 
+    gap: 4px; 
+    padding: 5px;
+}
+
+.btn-animalito-pro {
+    position: relative; 
+    overflow: hidden;   
+    z-index: 1;
+    width: 100%;
+    aspect-ratio: 1 / 1; 
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    padding: 4px 2px !important; 
+    height: auto;
+    min-height: 50px; 
+    font-size: 0.75rem; 
+}
+
+.btn-animalito-pro:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-primary);
+    box-shadow: 0 5px 15px rgba(56, 189, 248, 0.2);
+}
+
+.btn-animalito-pro .num {
+    position: relative;
+    z-index: 2;
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--accent-primary);
+    line-height: 1;
+}
+
+.btn-animalito-pro .name {
+    position: relative;
+    z-index: 2;
+    display: block;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+}
+
+.btn-animalito-pro i {
+    font-size: 1.2rem !important;
+    margin-bottom: 2px;
+}
+
+.cartilla-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+.cartilla-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+.cartilla-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
+}
+
+#modalRecarga label {
+    color: #cbd5e1 !important; 
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+#modalRecarga .form-control::placeholder {
+    color: #64748b !important; 
+}
+
+.icon-sombra {
+    position: absolute;
+    right: -10px;       
+    bottom: -15px;      
+    font-size: 3.8rem;  
+    opacity: 0.08;      
+    transform: rotate(-15deg); 
+    z-index: 0;         
+    color: var(--text-main); 
+    pointer-events: none;    
+}
+
+.btn-animalito-pro:hover .icon-sombra {
+    opacity: 0.15;
+    transition: opacity 0.3s ease;
+}
+
+.resultados-scroll-container {
+    display: flex;
+    overflow-x: auto; 
+    overflow-y: hidden;
+    gap: 10px;
+    padding: 15px 10px;
+    white-space: nowrap;
+    scrollbar-width: thin; 
+    scrollbar-color: var(--voto-si) transparent;
+    -webkit-overflow-scrolling: touch; 
+}
+
+.resultados-scroll-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.resultados-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--voto-si); 
+    border-radius: 10px;
+}
+
+.resultados-scroll-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.resultado-item {
+    flex: 0 0 auto; 
+    width: 90px; 
+}
+
+.resultados-scroll-custom::-webkit-scrollbar {
+    height: 4px; 
+}
+
+.resultados-scroll-custom::-webkit-scrollbar-thumb {
+    background-color: var(--accent-primary); 
+    border-radius: 10px;
+}
+
+.resultados-scroll-custom::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+div.overflow-auto::-webkit-scrollbar {
+    height: 8px; 
+}
+
+div.overflow-auto::-webkit-scrollbar-thumb {
+    background: var(--accent-primary); 
+    border-radius: 4px;
+}
+
+div.overflow-auto::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}

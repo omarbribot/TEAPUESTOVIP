@@ -54,6 +54,11 @@
             <label class="form-label">Número de Referencia</label>
             <input type="text" id="test_ref" class="form-control" placeholder="PAGOMOVIL-12345" value="TEST-REF-{{ range(1, 99999) | random }}">
         </div>
+        <!-- NUEVO: Campo de Selección de Fecha para Auditorías de Prueba -->
+        <div class="mb-3">
+            <label class="form-label">Fecha de la Transacción</label>
+            <input type="date" id="test_fecha" class="form-control">
+        </div>
         
         <button onclick="simularPago()" class="btn btn-primary w-100 py-3 mt-3 fw-bold">
             <i class="fas fa-bolt me-2"></i> EJECUTAR RECARGA AHORA
@@ -62,6 +67,20 @@
 </div>
 
 <script>
+// Al cargar el documento, seteamos la fecha actual en formato YYYY-MM-DD
+document.addEventListener("DOMContentLoaded", function() {
+    const campoFecha = document.getElementById('test_fecha');
+    const hoy = new Date();
+    
+    const año = hoy.getFullYear();
+    // Corregimos el padding del mes de forma limpia
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    
+    // El input tipo date requiere estrictamente el orden AÑO-MES-DÍA internamente para pintar la interfaz
+    campoFecha.value = `${año}-${mes}-${dia}`;
+});
+
 function simularPago() {
     const monto = document.getElementById('test_monto').value;
     if(!monto || monto <= 0) {
@@ -69,11 +88,20 @@ function simularPago() {
         return;
     }
 
+    // Convertimos la fecha del input (YYYY-MM-DD) al formato DD/MM/YYYY que usa tu base de datos
+    const fechaInput = document.getElementById('test_fecha').value;
+    let fechaFormateada = null;
+    if (fechaInput) {
+        const partes = fechaInput.split('-');
+        fechaFormateada = `${partes[2]}/${partes[1]}/${partes[0]}`; // DD/MM/YYYY
+    }
+
     const data = {
         user_id: document.getElementById('test_user_id').value,
         monto: monto,
         referencia: document.getElementById('test_ref').value,
-        token: "VIP_TOKEN_2026_TEST"
+        token: "VIP_TOKEN_2026_TEST",
+        fecha_personalizada: fechaFormateada // Se envía al webhook
     };
 
     fetch('/webhook/pagos', {
@@ -85,7 +113,7 @@ function simularPago() {
     .then(result => {
         if(result.status === 'success') {
             alert("✅ ¡Pago Exitoso! Tu saldo se ha actualizado.");
-            location.href = "{{ url_for('home') }}"; // Te devuelve al home para ver el saldo
+            location.href = "{{ url_for('home') }}";
         } else {
             alert("❌ Error: " + result.message);
         }

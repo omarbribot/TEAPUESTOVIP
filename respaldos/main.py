@@ -176,10 +176,7 @@ def ejecutar_giro_animalito(sorteo_id):
             cuota = 0
 
            # Esto funcionará tanto si el usuario eligió "09" como si eligió "09 - ÁGUILA"
-            animal_limpio = str(ap.animal_elegido).split()[0].zfill(2)
-            resultado_limpio = str(numero_ganador).zfill(2)
-
-            if animal_limpio == resultado_limpio:
+            if numero_ganador in str(ap.animal_elegido):
                 gano, cuota = True, 30
             elif ap.animal_elegido == 'PAR' and es_par:
                 gano, cuota = True, 1.95
@@ -226,13 +223,7 @@ def mock_api_pago_movil(telefono, cedula, banco, monto):
 @app.route('/')
 def home():
     ahora = get_hora_ve()
-    hora_limite_apuestas = ahora + timedelta(seconds=120)
-
-    # Filtramos para traer solo sorteos que no estén FINALIZADOS Y cuyo horario sea mayor a la hora límite
-    sorteos_db = Sorteo.query.filter(
-        Sorteo.estado != 'FINALIZADO',
-        Sorteo.horario > hora_limite_apuestas
-    ).order_by(Sorteo.horario.asc()).all()
+    sorteos_db = Sorteo.query.filter(Sorteo.estado != 'FINALIZADO').order_by(Sorteo.horario.asc()).all()
 
     for s in sorteos_db:
         s.hora_formateada = s.horario.strftime('%I:%M %p')
@@ -620,21 +611,7 @@ def webhook_pagos():
         try:
             monto = round(float(data.get('monto')), 2)
             usuario.saldo = round(usuario.saldo + monto, 2)
-            
-            # Capturamos la fecha si viene del simulador, de lo contrario usamos la actual
-            fecha_final = data.get('fecha_personalizada')
-            if not fecha_final:
-                fecha_final = datetime.now().strftime("%d/%m/%Y")
-
-            db.session.add(Movimiento(
-                user_id=usuario.id, 
-                tipo='Recarga', 
-                monto=monto, 
-                referencia=data.get('referencia'), 
-                banco_emisor=data.get('banco', 'Pago Móvil'), 
-                estatus='Completado', 
-                fecha_transaccion=fecha_final
-            ))
+            db.session.add(Movimiento(user_id=usuario.id, tipo='Recarga', monto=monto, referencia=data.get('referencia'), banco_emisor=data.get('banco', 'Pago Móvil'), estatus='Completado', fecha_transaccion=datetime.now().strftime("%d/%m/%Y")))
             db.session.commit()
             return jsonify({"status": "success"}), 200
         except Exception as e:

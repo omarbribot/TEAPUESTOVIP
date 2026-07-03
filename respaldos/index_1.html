@@ -8,7 +8,325 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+/* 1. Definición de colores mejorada */
+:root {
+    --bg-body: #020d1a;           
+    --bg-card: #1e293b;           
+    --bg-inner: #1a2233;           /* Fondo interno más nítido */
+    --text-main: #f8fafc;         
+    --text-muted: #94a3b8;        
+    --accent-primary: #38bdf8;    
+    --border-color: #334155;      
+    --voto-si: #4ed386;           
+    --voto-no: #ce5c5c;           
+}
+
+body { 
+    background-color: var(--bg-body); 
+    color: var(--text-main); 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    -webkit-font-smoothing: antialiased;
+}
+
+.hero-header { 
+    background: linear-gradient(135deg, #1e293b 0%, #1a2233 100%); 
+    border-bottom: 1px solid var(--border-color);
+    padding: 40px 0; 
+    margin-bottom: 30px; 
+}
+
+.mercado-card { 
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 20px; 
+    transition: transform 0.3s, box-shadow 0.3s; 
+    color: var(--text-main); 
+}
+
+.mercado-card:hover { 
+    transform: translateY(-5px); 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    border-color: var(--accent-primary) !important;
+}
+
+.mercado-card .card-title {
+    color: var(--text-main) !important; 
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3); 
+}
+
+/* Área de resultados con mejor contraste */
+.zona-progreso { 
+    background-color: var(--bg-inner) !important; 
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.mercado-card .text-success { color: var(--voto-si) !important; font-weight: bold; }
+.mercado-card .text-danger { color: var(--voto-no) !important; font-weight: bold; }
+.progress { background-color: #0f172a; height: 12px; border-radius: 10px; overflow: hidden; }
+.progress-bar.bg-success { background-color: var(--voto-si) !important; }
+.progress-bar.bg-danger { background-color: var(--voto-no) !important; }
+
+.mercado-card .btn-success { background-color: #166534 !important; border: none; font-weight: bold; }
+.mercado-card .btn-danger { background-color: #991b1b !important; border: none; font-weight: bold; }
+
+.input-group-text, .form-control {
+    background-color: #0f172a !important;
+    border-color: var(--border-color) !important;
+    color: white !important;
+}
+
+.badge.bg-primary {
+    background-color: var(--accent-primary) !important;
+    color: #020d1a;
+    font-weight: bold;
+}
+
+/* Estilo para la fecha de cierre resaltada */
+.fecha-cierre-box {
+    font-size: 0.85rem;
+    color: #fbbf24; /* Color ámbar para que resalte */
+    background: rgba(251, 191, 36, 0.1);
+    padding: 6px 12px;
+    border-radius: 10px;
+    display: inline-block;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.animalito-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 15px;
+}
+
+/* NUEVOS ESTILOS PARA CUOTAS */
+.badge-cuota {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-primary);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.estimado-texto {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 5px;
+    display: block;
+}
+.animalito-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        border-color: #28a745 !important;
+    }
+/* Contenedor con altura fija y scroll elegante */
+.cartilla-scroll-container {
+    background: var(--bg-inner);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    padding: 15px;
+    max-height: 450px; /* Evita que la página sea eterna hacia abajo */
+    overflow-y: auto;
+}
+
+/* La cuadrícula mágica */
+.grid-animalitos-layout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 columnas en móvil */
+    gap: 10px;
+}
+
+@media (min-width: 576px) {
+    .grid-animalitos-layout { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (min-width: 992px) {
+    .grid-animalitos-layout { grid-template-columns: repeat(6, 1fr); }
+}
+/* Contenedor optimizado para mayor densidad */
+.grid-animalitos-layout {
+    display: grid;
+    /* Forzamos más columnas en pantallas pequeñas para que quepan todos */
+    grid-template-columns: repeat(auto-fill, minmax(45px, 1fr)); 
+    gap: 4px; /* Espaciado mínimo entre botones */
+    padding: 5px;
+}
+
+/* Botón ultra-compacto */
+.btn-animalito-pro {
+    padding: 4px 2px !important; /* Reduce el espacio vertical y horizontal */
+    height: auto;
+    min-height: 50px; /* Altura suficiente para icono + número */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem; /* Texto un poco más pequeño para ahorrar espacio */
+}
+
+/* Ajuste del icono para que no empuje el borde */
+.btn-animalito-pro i {
+    font-size: 1.2rem !important;
+    margin-bottom: 2px;
+}
+/* Estilo del botón individual tipo "Cromo" */
+.btn-animalito-pro {
+    width: 100%;
+    aspect-ratio: 1 / 1; /* Cuadrados perfectos */
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.btn-animalito-pro:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-primary);
+    box-shadow: 0 5px 15px rgba(56, 189, 248, 0.2);
+}
+
+.btn-animalito-pro .num {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--accent-primary);
+    line-height: 1;
+}
+
+.btn-animalito-pro .name {
+    display: block;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+}
+
+/* Personalización del scrollbar para que no se vea feo */
+.cartilla-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+.cartilla-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+.cartilla-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
+}
+/* Mejora de visibilidad en el Modal de Recarga */
+#modalRecarga label {
+    color: #cbd5e1 !important; /* Gris claro para que se lea perfecto */
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+#modalRecarga .form-control::placeholder {
+    color: #64748b !important; /* Placeholder más visible */
+}
+/* --- EFECTO SOMBRA PARA ICONOS --- */
+
+/* Aseguramos que el botón sea el contenedor relativo */
+.btn-animalito-pro {
+    position: relative; /* Ya lo tenías, pero es vital */
+    overflow: hidden;   /* Para que el icono no se salga de las esquinas redondeadas */
+    z-index: 1;
+}
+
+.icon-sombra {
+    position: absolute;
+    right: -10px;       /* Lo sacamos un poco por la derecha */
+    bottom: -15px;      /* Lo sacamos un poco por abajo */
+    font-size: 3.8rem;  /* Tamaño grande para que cubra parte del fondo */
+    opacity: 0.08;      /* 8% de opacidad: casi invisible, muy elegante */
+    transform: rotate(-15deg); /* Inclinación para darle dinamismo */
+    z-index: 0;         /* Detrás de los textos (.num y .name) */
+    color: var(--text-main); /* Usamos tu variable de texto blanca */
+    pointer-events: none;    /* Para que no bloquee los clics al apostar */
+}
+
+/* Ajuste para que el texto resalte sobre la sombra */
+.btn-animalito-pro .num, 
+.btn-animalito-pro .name {
+    position: relative;
+    z-index: 2;
+}
+
+/* Efecto al pasar el mouse: el icono se aclara un poquito */
+.btn-animalito-pro:hover .icon-sombra {
+    opacity: 0.15;
+    transition: opacity 0.3s ease;
+}
+/* Contenedor principal de resultados */
+.resultados-scroll-container {
+    display: flex;
+    overflow-x: auto; /* Habilita el scroll horizontal */
+    overflow-y: hidden;
+    gap: 10px;
+    padding: 15px 10px;
+    white-space: nowrap;
+    scrollbar-width: thin; /* Para Firefox */
+    scrollbar-color: var(--voto-si) transparent;
+    -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+}
+
+/* Estilo de la barra de desplazamiento para Chrome/Edge/Safari */
+.resultados-scroll-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.resultados-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--voto-si); /* Usando el verde que ya tienes definido */
+    border-radius: 10px;
+}
+
+.resultados-scroll-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Asegura que cada item no se encoja */
+.resultado-item {
+    flex: 0 0 auto; 
+    width: 90px; /* Ajusta según el ancho actual de tus cuadros */
+}
+/* Estilo minimalista para la barra de scroll de resultados */
+.resultados-scroll-custom::-webkit-scrollbar {
+    height: 4px; /* Muy delgada para que sea discreta */
+}
+
+.resultados-scroll-custom::-webkit-scrollbar-thumb {
+    background-color: var(--accent-primary); /* Usa tu color azul/cian */
+    border-radius: 10px;
+}
+
+.resultados-scroll-custom::-webkit-scrollbar-track {
+    background: transparent;
+}
+/* Esto hará que la barra de scroll sea visible y fácil de identificar */
+div.overflow-auto::-webkit-scrollbar {
+    height: 8px; /* Altura de la barra horizontal */
+}
+
+div.overflow-auto::-webkit-scrollbar-thumb {
+    background: var(--accent-primary); /* El color de tu proyecto */
+    border-radius: 4px;
+}
+
+div.overflow-auto::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+</style>
 </head>
 <body>
 
@@ -264,8 +582,34 @@
     {% endfor %} </div>
 </div>
 
-<!-- PASO 3: Llamamos a la modal de apuestas de forma externa -->
-    {% include 'components/modal_apuesta.html' %}
+<div class="modal fade" id="modalApuesta" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Apostar al <span id="modal-numero"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-center fw-bold text-uppercase" id="modal-nombre"></p>
+                <form id="formApuestaAnimal">
+                    <div class="mb-3">
+                        <label class="form-label">Monto a apostar ($):</label>
+                        <input type="number" id="monto_animal" class="form-control" placeholder="0.00" step="0.5" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sorteo disponible:</label>
+                        <select id="sorteo_id" class="form-select">
+                            {% for s in sorteos if s.estado == 'PROGRAMADO' %}
+                            <option value="{{ s.id }}">{{ s.horario.strftime('%H:%M') }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Confirmar Jugada</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
     {% endblock %}
     <footer class="text-center py-4 text-muted border-top mt-5">
@@ -397,8 +741,125 @@
 
     // Iniciar el intervalo
     setInterval(actualizarRelojes, 1000);
-</script>
-{% include 'components/modal_recarga.html' %}
+    </script>
+<!-- ========================================== -->
+<!-- MODAL DE RECARGA CON CORRECCIÓN DE FECHA   -->
+<!-- ========================================== -->
+<div class="modal fade" id="modalRecarga" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-0 bg-primary">
+                <h5 class="modal-title">Notificación de Pago</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 mb-4 rounded" style="background: #f8f9fa; color: #333;">
+                    <h6 class="fw-bold text-center border-bottom pb-2">DATOS DE TRANSFERENCIA / PAGO MÓVIL</h6>
+                    <div class="small mt-2">
+                        <p class="mb-1"><strong>Banco:</strong> BNC / Mercantil / Venezuela</p>
+                        <p class="mb-1"><strong>Nombre:</strong> TE APUESTO VIP 2026</p>
+                        <p class="mb-1"><strong>RIF:</strong> J-412936638</p>
+                        <p class="mb-1"><strong>Teléfono:</strong> 0424-5899131</p>
+                    </div>
+                </div>
 
+                <form id="formNotificarPago">
+                    <div class="mb-3">
+                        <label class="form-label small">Monto Pagado (Bs):</label>
+                        <input type="number" id="monto_pago" class="form-control" placeholder="Ej: 150.00" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Banco donde realizó el pago:</label>
+                        <select id="banco_destino" class="form-select">
+                            <option value="MERCANTIL">BANCO MERCANTIL</option>
+                            <option value="VENEZUELA">BANCO DE VENEZUELA</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Referencia (Últimos 6 dígitos):</label>
+                        <input type="text" id="ref_pago" class="form-control" placeholder="000000" maxlength="6" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Fecha:</label>
+                        <!-- CORRECCIÓN: Le quitamos el value quemado en duro para que no se tranque en abril -->
+                        <input type="date" id="fecha_pago" class="form-control" required>
+                    </div>
+                    <button type="button" id="btnEnviarPago" onclick="procesarRecargaSimulada()" class="btn btn-primary w-100 fw-bold">
+                        VERIFICAR PAGO AHORA
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Al cargar la página, inyectamos dinámicamente la fecha de HOY real en el calendario
+document.addEventListener("DOMContentLoaded", function() {
+    const inputFechaModal = document.getElementById('fecha_pago');
+    if (inputFechaModal) {
+        const hoy = new Date();
+        const año = hoy.getFullYear();
+        const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+        const dia = String(hoy.getDate()).padStart(2, '0');
+        
+        // Formato estricto YYYY-MM-DD que requiere el navegador internamente
+        inputFechaModal.value = `${año}-${mes}-${dia}`;
+    }
+});
+
+function procesarRecargaSimulada() {
+    const monto = document.getElementById('monto_pago').value;
+    const ref = document.getElementById('ref_pago').value;
+    const btn = document.getElementById('btnEnviarPago');
+
+    if (!monto || monto <= 0) {
+        alert("⚠️ Por favor ingresa un monto válido.");
+        return;
+    }
+
+    // Capturamos la fecha seleccionada del input y la convertimos al formato de tu base de datos (DD/MM/YYYY)
+    const fechaSeleccionada = document.getElementById('fecha_pago').value;
+    let fechaParaBackend = null;
+    if (fechaSeleccionada) {
+        const partes = fechaSeleccionada.split('-');
+        fechaParaBackend = `${partes[2]}/${partes[1]}/${partes[0]}`; 
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+
+    const datos = {
+        user_id: {{ current_user.id | default(0) }},
+        monto: monto,
+        referencia: ref || "SIM-" + Math.floor(Math.random() * 1000000),
+        token: "VIP_TOKEN_2026_TEST",
+        fecha_personalizada: fechaParaBackend // <--- Enviamos la fecha al webhook modificado
+    };
+
+    fetch('/webhook/pagos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert("✅ ¡Saldo acreditado con éxito!");
+            location.reload(); 
+        } else {
+            alert("❌ Error: " + data.message);
+            btn.disabled = false;
+            btn.innerHTML = 'VERIFICAR PAGO AHORA';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("Ocurrió un error al conectar con el webhook.");
+        btn.disabled = false;
+        btn.innerHTML = 'VERIFICAR PAGO AHORA';
+    });
+}
+</script>
 </body> 
 </html>

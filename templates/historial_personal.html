@@ -17,7 +17,7 @@
         td { padding: 15px; border-bottom: 1px solid #eee; font-size: 0.95em; vertical-align: middle; }
         
         tbody tr { transition: 0.2s; }
-        tbody tr:hover { background-color: #f1f7ff; }
+        tbody tr.fila-apuesta:hover { background-color: #f1f7ff; }
 
         .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; display: inline-block; }
         .GANADA { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -35,11 +35,18 @@
 
         .tipo-icon { margin-right: 8px; color: #999; font-size: 0.9em; }
 
+        /* Contenedor y Botones de Paginación */
+        .paginacion-container { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 25px; }
+        .btn-pagi { padding: 8px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 0.9em; font-weight: 500; color: #555; transition: 0.2s; }
+        .btn-pagi:hover:not(:disabled) { background: #f1f3f5; border-color: #bbb; color: #111; }
+        .btn-pagi.active { background: #0d47a1; color: white; border-color: #0d47a1; font-weight: bold; }
+        .btn-pagi:disabled { opacity: 0.4; cursor: not-allowed; }
+
         @media (max-width: 600px) {
             .header-personal { flex-direction: column; gap: 15px; text-align: center; }
             .container { padding: 15px; }
             table thead { display: none; }
-            table tbody tr { display: block; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; background: #fff; padding: 10px; }
+            table tbody tr.fila-apuesta { display: block; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; background: #fff; padding: 10px; }
             table td { display: block; text-align: right; padding: 8px 10px; border-bottom: 1px solid #eee; position: relative; }
             table td::before { content: attr(data-label); position: absolute; left: 10px; font-weight: bold; color: #666; text-transform: uppercase; font-size: 0.75em; }
         }
@@ -82,7 +89,7 @@
                         <th>Retorno</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tabla-body">
                     {# --- BLOQUE DE MERCADOS --- #}
                     {% for apuesta in mercados %}
                     <tr class="fila-apuesta">
@@ -94,7 +101,6 @@
                             <strong>{{ apuesta.mercado.pregunta }}</strong>
                         </td>
                         <td data-label="Tu Jugada">
-                            {# Aquí mostramos SI o NO para los mercados #}
                             <span class="voto-{{ apuesta.opcion_elegida|lower }}">{{ apuesta.opcion_elegida }}</span>
                         </td>
                         <td data-label="Inversión">${{ "{:,.2f}".format(apuesta.monto) }}</td>
@@ -113,7 +119,7 @@
                     </tr>
                     {% endfor %}
 
-                    {# --- BLOQUE DE ANIMALITOS MODIFICADO --- #}
+                    {# --- BLOQUE DE ANIMALITOS --- #}
                     {% for apuesta in animalitos %}
                     <tr class="fila-apuesta">
                         <td data-label="Fecha" style="color: #888; font-size: 0.85em;">
@@ -133,7 +139,6 @@
                             {% endif %}
                         </td>
                         <td data-label="Tu Jugada">
-                            {# Corregido: usamos apuesta.animal_elegido y el diccionario #}
                             {% if apuesta.animal_elegido in ['PAR', 'IMPAR'] %}
                                 <span class="badge bg-secondary">{{ apuesta.animal_elegido }}</span>
                             {% else %}
@@ -156,17 +161,18 @@
                     </tr>
                     {% endfor %}
 
-                    {% if not mercados and not animalitos %}
-                    <tr>
+                    <tr id="fila-vacia" style="display: none;">
                         <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
                             <i class="fas fa-ghost" style="font-size: 2em; display: block; margin-bottom: 10px;"></i>
-                            Aún no has realizado ninguna apuesta en el sistema.
+                            No se encontraron apuestas para este filtro.
                         </td>
                     </tr>
-                    {% endif %}
                 </tbody>
             </table>
         </div>
+
+        <!-- Contenedor dinámico de paginación -->
+        <div class="paginacion-container" id="paginacion-cont"></div>
     </div>
 
     <footer style="text-align: center; margin-top: 30px; color: #888; font-size: 0.8em;">
@@ -174,30 +180,105 @@
     </footer>
 
     <script>
+        // Configuración de la paginación
+        const FILAS_POR_PAGINA = 10;
+        let paginaActual = 1;
+        let filtroActual = 'TODAS';
+
+        function actualizarPaginacion() {
+            const filas = Array.from(document.querySelectorAll('tbody tr.fila-apuesta'));
+            
+            // 1. Filtrar primero las filas según la pestaña seleccionada
+            const filasFiltradas = filas.filter(fila => {
+                const celdaEstado = fila.querySelector('td[data-label="Estado"] .badge');
+                if (!celdaEstado) return false;
+                const estadoFila = celdaEstado.innerText.trim().toUpperCase();
+                return filtroActual === 'TODAS' || estadoFila === filtroActual;
+            });
+
+            // Manejo del mensaje vacío
+            const filaVacia = document.getElementById('fila-vacia');
+            if (filasFiltradas.length === 0) {
+                filaVacia.style.display = '';
+                document.getElementById('paginacion-cont').innerHTML = '';
+                filas.forEach(f => f.style.display = 'none');
+                return;
+            } else {
+                filaVacia.style.display = 'none';
+            }
+
+            // 2. Calcular límites
+            const totalPaginas = Math.ceil(filasFiltradas.length / FILAS_POR_PAGINA);
+            if (paginaActual > totalPaginas) paginaActual = totalPaginas || 1;
+
+            const indiceInicio = (paginaActual - 1) * FILAS_POR_PAGINA;
+            const indiceFin = indiceInicio + FILAS_POR_PAGINA;
+
+            // 3. Ocultar todas las filas y mostrar solo las del rango actual
+            filas.forEach(f => f.style.display = 'none');
+            filasFiltradas.forEach((fila, index) => {
+                if (index >= indiceInicio && index < indiceFin) {
+                    fila.style.display = '';
+                }
+            });
+
+            // 4. Renderizar controles de paginación
+            renderizarControles(totalPaginas);
+        }
+
+        function renderizarControles(totalPaginas) {
+            const contenedor = document.getElementById('paginacion-cont');
+            contenedor.innerHTML = '';
+
+            if (totalPaginas <= 1) return;
+
+            // Botón Anterior
+            const btnAnt = document.createElement('button');
+            btnAnt.className = 'btn-pagi';
+            btnAnt.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            btnAnt.disabled = paginaActual === 1;
+            btnAnt.onclick = () => { paginaActual--; actualizarPaginacion(); };
+            contenedor.appendChild(btnAnt);
+
+            // Botones de Páginas Numéricas
+            for (let i = 1; i <= totalPaginas; i++) {
+                const btnPag = document.createElement('button');
+                btnPag.className = `btn-pagi ${i === paginaActual ? 'active' : ''}`;
+                btnPag.innerText = i;
+                btnPag.onclick = () => { paginaActual = i; actualizarPaginacion(); };
+                contenedor.appendChild(btnPag);
+            }
+
+            // Botón Siguiente
+            const btnSig = document.createElement('button');
+            btnSig.className = 'btn-pagi';
+            btnSig.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            btnSig.disabled = paginaActual === totalPaginas;
+            btnSig.onclick = () => { paginaActual++; actualizarPaginacion(); };
+            contenedor.appendChild(btnSig);
+        }
+
         function filtrarApuestas(estado, boton) {
-            // 1. Cambiar estado visual de los botones
+            // Cambiar clase active en los botones
             document.querySelectorAll('.btn-filtro').forEach(btn => btn.classList.remove('active'));
             boton.classList.add('active');
 
-            // 2. Filtrar las filas
-            const filas = document.querySelectorAll('tbody tr.fila-apuesta');
-            
-            filas.forEach(fila => {
-                // Buscamos la celda que tiene el atributo data-label="Estado"
-                const celdaEstado = fila.querySelector('td[data-label="Estado"] .badge');
-                
-                if (celdaEstado) {
-                    // Obtenemos el texto del estado (PENDIENTE, GANADA, PERDIDA)
-                    const estadoFila = celdaEstado.innerText.trim().toUpperCase();
-                    
-                    if (estado === 'TODAS' || estadoFila === estado) {
-                        fila.style.display = ''; // Mostrar
-                    } else {
-                        fila.style.display = 'none'; // Ocultar
-                    }
-                }
-            });
+            // Actualizar filtros globales y resetear a la primera página
+            filtroActual = estado;
+            paginaActual = 1;
+            actualizarPaginacion();
         }
+
+        // Ejecutar al cargar la página por primera vez
+        document.addEventListener("DOMContentLoaded", function() {
+            // Verificar si inicialmente la tabla no tiene datos del Jinja2
+            const totalFilas = document.querySelectorAll('tbody tr.fila-apuesta').length;
+            if (totalFilas === 0) {
+                document.getElementById('fila-vacia').style.display = '';
+            } else {
+                actualizarPaginacion();
+            }
+        });
     </script>
 </body>
 </html>
