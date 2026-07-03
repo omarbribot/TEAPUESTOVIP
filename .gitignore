@@ -12,3 +12,14 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
+
+# Scripts de prueba locales (no se necesitan en producción)
+arquitectura_caja.md
+bot_stress.py
+backup.py
+test_bot_connection.py
+test_conexion.py
+test_piloto.py
+limpiar_bd.py
+recargar_saldo.py
+ver_errores.py
