@@ -147,10 +147,7 @@ def ejecutar_giro_animalito(sorteo_id):
             print(f"⚠️ [Piloto] Sorteo {sorteo_id} cancelado por estar DESACTIVADO.")
             return
         # -----------------------------------------------------------------
-
-        sorteo = db.session.get(Sorteo, sorteo_id)
-        if not sorteo or sorteo.estado.upper() == 'FINALIZADO':
-            return
+        
         sorteo = db.session.get(Sorteo, sorteo_id)
         if not sorteo or sorteo.estado.upper() == 'FINALIZADO':
             return
@@ -880,12 +877,17 @@ def detalle_sorteo_animalito(sorteo_id):
     apuestas = ApuestaAnimalito.query.filter_by(sorteo_id=sorteo_id).all()
     resultado = []
     for ap in apuestas:
+        # Si la apuesta es PAR o IMPAR, el nombre es la condición misma de manera limpia
+        if str(ap.animal_elegido).upper() in ['PAR', 'IMPAR']:
+            nombre_renderizado = str(ap.animal_elegido).upper()
+        else:
+            nombre_renderizado = ANIMALITOS.get(str(ap.animal_elegido), 'Animalito')
+
         resultado.append({
             'username': ap.usuario.username,
-            'animal_elegido': ap.animal_elegido, # Nombre oficial
-            'codigo_animal': ap.animal_elegido,   # Si guardaste el código aquí
-            # Traducción directa usando el diccionario que ya tienes en constantes
-            'nombre_animal': ANIMALITOS.get(str(ap.animal_elegido), 'Desconocido'),
+            'animal_elegido': ap.animal_elegido,
+            'codigo_animal': ap.animal_elegido,
+            'nombre_animal': nombre_renderizado,
             'monto': ap.monto,
             'estado': ap.estado
         })

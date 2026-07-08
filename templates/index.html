@@ -181,6 +181,7 @@
     
     <div class="row">
     {% for sorteo in sorteos_activos %}
+    {% if loop.index <= 3 %}
     <div class="col-md-8 mx-auto">
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
@@ -261,6 +262,7 @@
 </div>
         </div>
     </div>
+    {% endif %}
     {% endfor %} </div>
 </div>
 
