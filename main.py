@@ -26,7 +26,7 @@ def get_hora_ve():
     hora_ve = datetime.now(TZ_VENEZUELA).replace(tzinfo=None)
     
     # 2. Imprimimos para verificar (Esto solo sale en tu consola, no afecta al programa)
-    print(f"--- [DEBUG HORA] Hora real tomada por el sistema: {hora_ve} ---")
+    # print(f"--- [DEBUG HORA] Hora real tomada por el sistema: {hora_ve} ---")
     
     # 3. Retornamos exactamente lo mismo que tenías antes
     return hora_ve

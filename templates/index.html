@@ -12,44 +12,59 @@
 </head>
 <body>
 
-    <nav class="navbar navbar-dark bg-dark mb-0">
-    <div class="container justify-content-center">
+    <nav class="navbar navbar-dark bg-dark mb-0 py-2">
+        <div class="container d-flex flex-column align-items-center gap-2">
         {% if current_user.is_authenticated %}
-            <span class="text-white me-3"><i class="fas fa-user-circle"></i> {{ current_user.username }}</span>
-            
-            {% if not soy_admin %}
-                <span class="text-white me-3">
+            <!-- 1. Línea de información de usuario y saldo -->
+            <div class="w-100 d-flex justify-content-between align-items-center px-2 border-bottom border-secondary pb-2">
+                <span class="text-white small fw-bold">
+                    <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
+                </span>
+                {% if not soy_admin %}
+                <span class="text-white small">
                     Saldo: <strong id="user-saldo-val" class="text-success">${{ "{:,.2f}".format(current_user.saldo | default(0)) }}</strong>
                 </span>
-                
-                <button type="button" class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#modalRecarga">
-                    <i class="fas fa-plus-circle me-1"></i> Recargar
-                </button>
-                
-                <a href="{{ url_for('retirar') }}" class="btn btn-outline-danger btn-sm me-2">
-                    <i class="fas fa-university me-1"></i> Retirar
-                </a>
-                
-                <a href="{{ url_for('mi_historial') }}" class="btn btn-sm btn-outline-primary me-2">
-                    <i class="fas fa-dice me-1"></i> Mis Apuestas
-                </a>
-
-                <a href="{{ url_for('mis_transacciones') }}" class="btn btn-sm btn-outline-primary me-2">
-                    <i class="fas fa-history me-1"></i> Transacciones
-                </a>
-            {% endif %}
-
-            <!-- BOTÓN PANEL DE CONTROL EN EL MENÚ -->
-            {% if current_user.username == 'omarbri' %}
-            <a href="{{ url_for('admin') }}" class="btn btn-sm btn-warning me-2">
-                <i class="fas fa-cog"></i> Panel Control
-            </a>
-            {% endif %}
+                {% endif %}
+            </div>
             
-            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">Salir</a>
+            <!-- 2. Fila elástica de botones con scroll horizontal si no caben -->
+            <div class="w-100 d-flex flex-nowrap overflow-auto gap-2 py-1 px-1 justify-content-start justify-content-md-center align-items-center" 
+                 style="scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+                
+                {% if not soy_admin %}
+                    <button type="button" class="btn btn-success btn-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#modalRecarga">
+                        <i class="fas fa-plus-circle me-1"></i> Recargar
+                    </button>
+                    
+                    <a href="{{ url_for('retirar') }}" class="btn btn-outline-danger btn-sm flex-shrink-0">
+                        <i class="fas fa-university me-1"></i> Retirar
+                    </a>
+                    
+                    <a href="{{ url_for('mi_historial') }}" class="btn btn-sm btn-outline-primary flex-shrink-0">
+                        <i class="fas fa-dice me-1"></i> Mis Apuestas
+                    </a>
+
+                    <a href="{{ url_for('mis_transacciones') }}" class="btn btn-sm btn-outline-primary flex-shrink-0">
+                        <i class="fas fa-history me-1"></i> Transacciones
+                    </a>
+                {% endif %}
+
+                <!-- BOTÓN PANEL DE CONTROL EN EL MENÚ -->
+                {% if current_user.username == 'omarbri' %}
+                <a href="{{ url_for('admin') }}" class="btn btn-sm btn-warning flex-shrink-0">
+                    <i class="fas fa-cog me-1"></i> Panel Control
+                </a>
+                {% endif %}
+                
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger flex-shrink-0 ms-auto ms-md-0">
+                    <i class="fas fa-sign-out-alt me-1"></i> Salir
+                </a>
+            </div>
         {% else %}
-            <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm me-2">Entrar</a>
-            <a href="{{ url_for('registro') }}" class="btn btn-outline-primary btn-sm">Registro</a>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm px-3">Entrar</a>
+                <a href="{{ url_for('registro') }}" class="btn btn-outline-primary btn-sm px-3">Registro</a>
+            </div>
         {% endif %}
         </div>
     </nav>
