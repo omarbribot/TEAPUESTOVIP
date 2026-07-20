@@ -42,7 +42,13 @@
                         {% if movimientos %}
                             {% for mov in movimientos %}
                             <tr class="fila-movimiento">
-                                <td class="ps-4 text-muted small">{{ mov.fecha_transaccion }}</td>
+                                <td class="ps-4 text-muted small">
+                                    {% if mov.fecha_transaccion is string %}
+                                        {{ mov.fecha_transaccion }}
+                                    {% else %}
+                                        {{ mov.fecha_transaccion.strftime('%d/%m/%Y %I:%M %p') }}
+                                    {% endif %}
+                                </td>
                                 
                                 <td>
                                     {% if 'Recarga' in mov.tipo %}

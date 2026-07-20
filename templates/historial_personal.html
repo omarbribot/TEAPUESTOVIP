@@ -94,7 +94,13 @@
                     {% for apuesta in mercados %}
                     <tr class="fila-apuesta">
                         <td data-label="Fecha" style="color: #888; font-size: 0.85em;">
-                            {{ apuesta.fecha.strftime('%d/%m/%Y %H:%M') if apuesta.fecha else 'N/A' }}
+                            {% if apuesta.fecha is string %}
+                                {{ apuesta.fecha }}
+                            {% elif apuesta.fecha %}
+                                {{ apuesta.fecha.strftime('%d/%m/%Y %I:%M %p') }}
+                            {% else %}
+                                N/A
+                            {% endif %}
                         </td>
                         <td data-label="Juego">
                             <i class="fas fa-chart-line tipo-icon" title="Mercado"></i>
@@ -123,7 +129,13 @@
                     {% for apuesta in animalitos %}
                     <tr class="fila-apuesta">
                         <td data-label="Fecha" style="color: #888; font-size: 0.85em;">
-                            {{ apuesta.fecha.strftime('%d/%m/%Y %H:%M') if apuesta.fecha else 'N/A' }}
+                            {% if apuesta.fecha is string %}
+                                {{ apuesta.fecha }}
+                            {% elif apuesta.fecha %}
+                                {{ apuesta.fecha.strftime('%d/%m/%Y %I:%M %p') }}
+                            {% else %}
+                                N/A
+                            {% endif %}
                         </td>
                         <td data-label="Juego">
                             <i class="fas fa-paw tipo-icon" title="Animalitos"></i>

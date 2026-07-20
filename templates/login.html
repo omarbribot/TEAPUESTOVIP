@@ -24,6 +24,9 @@
         {% endwith %}
 
         <form action="{{ url_for('login') }}" method="POST">
+            <!-- Este input genera el token dinámico de seguridad para Flask-WTF -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
             <input type="text" name="username" placeholder="Usuario o Correo" required>
             <input type="password" name="password" placeholder="Contraseña" required>
             <button type="submit">Entrar</button>

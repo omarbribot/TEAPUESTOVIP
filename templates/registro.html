@@ -29,6 +29,9 @@
         {% endwith %}
 
         <form action="{{ url_for('registro') }}" method="POST">
+            <!-- Escudo de protección CSRF para la creación de usuarios -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
             <input type="text" name="nombre" placeholder="Nombre Completo" required>
             <input type="text" name="cedula" placeholder="Cédula de Identidad" required>
             <input type="text" name="username" placeholder="Nombre de Usuario (ej: omar_vip)" required>

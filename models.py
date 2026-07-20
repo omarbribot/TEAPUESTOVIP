@@ -119,8 +119,8 @@ class Movimiento(db.Model):
     referencia = db.Column(db.String(20), nullable=True)
     banco_emisor = db.Column(db.String(100), nullable=True)
     estatus = db.Column(db.String(20))
-    fecha_transaccion = db.Column(db.String(20), nullable=True)
-    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_transaccion = db.Column(db.DateTime, nullable=True)
+    fecha_registro = db.Column(db.DateTime, default=datetime.now)
     
     # ◄ NUEVOS CAMPOS ADAPTADOS: Apuntan a 'sorteo.id' y 'mercado.id' (en singular tal como tus modelos)
     sorteo_id = db.Column(db.Integer, db.ForeignKey('sorteo.id'), nullable=True)

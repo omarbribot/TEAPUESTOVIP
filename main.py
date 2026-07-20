@@ -1,3 +1,4 @@
+from flask_wtf.csrf import CSRFProtect
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from datetime import datetime, timedelta
@@ -5,6 +6,7 @@ from flask_migrate import Migrate
 from sqlalchemy import func
 from functools import wraps
 from consultas import consultas_bp
+from dotenv import load_dotenv  
 import os
 import random
 import uuid
@@ -15,7 +17,7 @@ import constantes
 from constantes import ANIMALITOS, ICONOS_ANIMALITOS, TOKEN_API_SEGURO
 from flask_apscheduler import APScheduler
 import pytz
-
+load_dotenv()
 # Zona horaria oficial de Venezuela
 TZ_VENEZUELA = pytz.timezone('America/Caracas')
 
@@ -48,7 +50,8 @@ def auth_required(f):
 # 1. CONFIGURACIÓN INICIAL
 basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'tu_clave_secreta_aqui'
+csrf = CSRFProtect(app)
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'un_fallback_local_muy_largo_y_complejo_xyz_2026')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'teapuesto.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.register_blueprint(consultas_bp)
@@ -196,7 +199,7 @@ def ejecutar_giro_animalito(sorteo_id):
                     referencia=f"PRM-A-{sorteo_id}",
                     banco_emisor='Sistema VIP',
                     estatus='Completado',
-                    fecha_transaccion=datetime.now().strftime("%d/%m/%Y")
+                    fecha_transaccion=get_hora_ve()
                 )
                 db.session.add(mov_premio)
             else:
@@ -267,110 +270,114 @@ def home():
 
 
 
+# ==========================================
+# 🎰 RUTA DE APUESTA ANIMALITO BLINDADA
+# ==========================================
 @app.route('/apostar_animalito', methods=['POST'])
+@csrf.exempt
 @login_required
 def apostar_animalito():
     data = request.get_json()
     sorteo_id = data.get('sorteo_id')
-    animal_elegido = data.get('animal') # Aquí llegará "8", "PAR" o "IMPAR"
+    animal_elegido = data.get('animal')
+    
     try:
         monto = float(data.get('monto', 0))
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Monto no válido'}), 400
     
-    if monto <= 0 or current_user.saldo < monto:
-        return jsonify({'status': 'error', 'message': 'Saldo insuficiente o monto inválido'}), 400
-    
-    sorteo = db.session.get(Sorteo, sorteo_id)
-    # --- BLOQUE DE SEGURIDAD: VALIDACIÓN DE CIERRE ---
-    if sorteo:
-        ahora = get_hora_ve()
-        # Calculamos cuántos segundos faltan para el sorteo
-        segundos_restantes = (sorteo.horario - ahora).total_seconds()
-        
-        # Si faltan menos de 120 segundos (2 minutos), bloqueamos
-        if segundos_restantes < 120:
-            return jsonify({
-                'status': 'error', 
-                'message': 'Sorteo cerrado. Las apuestas cierran 2 minutos antes del inicio.'
-            }), 400
-    # -------------------------------------------------
-    
-    if not sorteo or sorteo.estado.upper() not in ['PENDIENTE', 'PROGRAMADO']:
-        return jsonify({'status': 'error', 'message': 'Sorteo no disponible o ya cerrado'}), 400
+    if monto <= 0:
+        return jsonify({'status': 'error', 'message': 'Monto inválido'}), 400
     
     try:
-        # AJUSTE 2: Redondeo de saldo para evitar decimales infinitos
-        current_user.saldo = round(current_user.saldo - monto, 2)
+        # BLOQUEO DE FILA: Evita la compra múltiple concurrente (Race Condition)
+        usuario = Usuario.query.with_for_update().get(current_user.id)
+        
+        if usuario.saldo < monto:
+            return jsonify({'status': 'error', 'message': 'Saldo insuficiente'}), 400
+            
+        sorteo = db.session.get(Sorteo, sorteo_id)
+        if sorteo:
+            ahora = get_hora_ve()
+            segundos_restantes = (sorteo.horario - ahora).total_seconds()
+            if segundos_restantes < 120:
+                return jsonify({'status': 'error', 'message': 'Sorteo cerrado. Tolerancia de 2 minutos vencida.'}), 400
+        
+        if not sorteo or sorteo.estado.upper() not in ['PENDIENTE', 'PROGRAMADO']:
+            return jsonify({'status': 'error', 'message': 'Sorteo no disponible o ya cerrado'}), 400
+
+        # Modificación atómica
+        usuario.saldo = round(usuario.saldo - monto, 2)
+        
         nueva_apuesta = ApuestaAnimalito(
-            usuario_id=current_user.id,
+            usuario_id=usuario.id,
             sorteo_id=sorteo_id,
-            animal_elegido=str(animal_elegido).upper(), # Guardamos siempre en mayúsculas
+            animal_elegido=str(animal_elegido).upper(),
             monto=monto,
             estado='PENDIENTE'
         )
         db.session.add(nueva_apuesta)
 
-        # ◄ AUDITORÍA: Registro de la compra de la apuesta (Animalitos)
         mov_compra_a = Movimiento(
-            user_id=current_user.id,
+            user_id=usuario.id,
             tipo='Apuesta Animalito',
-            monto=-monto, # Flujo de salida (Negativo)
+            monto=-monto,
             referencia=f"APS-A-{sorteo_id}-{animal_elegido}",
             banco_emisor='Saldo Interno',
             estatus='Completado',
-            fecha_transaccion=datetime.now().strftime("%d/%m/%Y")
+            fecha_transaccion=get_hora_ve()
         )
         db.session.add(mov_compra_a)
 
         db.session.commit()
-        
-        # Devolvemos el éxito para que el JavaScript actualice el saldo en pantalla
         return jsonify({
             'status': 'success',
             'message': f'Apuesta al {animal_elegido} procesada',
-            'nuevo_saldo': f"{current_user.saldo:,.2f}"
+            'nuevo_saldo': f"{usuario.saldo:,.2f}"
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': 'Error interno al procesar apuesta.'}), 500
 
+# ==========================================
+# 📊 RUTA DE APUESTA MERCADO BLINDADA
+# ==========================================
 @app.route('/apostar_mercado', methods=['POST'])
+@csrf.exempt
 @login_required
 def apostar_mercado():
     data = request.get_json()
     mercado_id = data.get('mercado_id')
     opcion = data.get('opcion')
+    
     try:
         monto = float(data.get('monto', 0))
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Monto no válido'}), 400
 
-    config = Configuracion.query.first()
-    if config:
-        if monto < config.mercados_min:
-            return jsonify({
-                'status': 'error',
-                'message': f'La apuesta mínima en predicciones es de {config.mercados_min:,.2f}'
-            }), 400
-
-        if monto > config.mercados_max:
-            return jsonify({
-                'status': 'error',
-                'message': f'La apuesta máxima permitida en predicciones es de {config.mercados_max:,.2f}'
-            }), 400
-
-    if monto <= 0 or current_user.saldo < monto:
-        return jsonify({'status': 'error', 'message': 'Saldo insuficiente'}), 400
-    
-    mercado = db.session.get(Mercado, mercado_id)
-    if not mercado or mercado.estado != 'Abierto':
-        return jsonify({'status': 'error', 'message': 'Mercado cerrado'}), 400
-
     try:
-        current_user.saldo = round(current_user.saldo - monto, 2)
+        # BLOQUEO DE FILA
+        usuario = Usuario.query.with_for_update().get(current_user.id)
+        
+        config = Configuracion.query.first()
+        if config:
+            if monto < config.mercados_min:
+                return jsonify({'status': 'error', 'message': f'Monto mínimo es {config.mercados_min}'}), 400
+            if monto > config.mercados_max:
+                return jsonify({'status': 'error', 'message': f'Monto máximo es {config.mercados_max}'}), 400
+
+        if monto <= 0 or usuario.saldo < monto:
+            return jsonify({'status': 'error', 'message': 'Saldo insuficiente o monto inválido'}), 400
+        
+        mercado = db.session.get(Mercado, mercado_id)
+        if not mercado or mercado.estado != 'Abierto':
+            return jsonify({'status': 'error', 'message': 'Mercado cerrado'}), 400
+
+        # Modificación atómica
+        usuario.saldo = round(usuario.saldo - monto, 2)
+        
         nueva_apuesta = ApuestaMercado(
-            usuario_id=current_user.id,
+            usuario_id=usuario.id,
             mercado_id=mercado_id,
             opcion_elegida=opcion,
             monto=monto,
@@ -378,15 +385,14 @@ def apostar_mercado():
         )
         db.session.add(nueva_apuesta)
 
-        # ◄ AUDITORÍA: Registro de la compra de la apuesta (Mercados)
         mov_compra_m = Movimiento(
-            user_id=current_user.id,
+            user_id=usuario.id,
             tipo='Apuesta Mercado',
-            monto=-monto, # Flujo de salida (Negativo)
+            monto=-monto,
             referencia=f"APS-M-{mercado_id}",
             banco_emisor='Saldo Interno',
             estatus='Completado',
-            fecha_transaccion=datetime.now().strftime("%d/%m/%Y")
+            fecha_transaccion=get_hora_ve()
         )
         db.session.add(mov_compra_m)
 
@@ -394,11 +400,11 @@ def apostar_mercado():
         return jsonify({
             'status': 'success',
             'message': '¡Apuesta procesada!',
-            'nuevo_saldo': f"{current_user.saldo:,.2f}"
+            'nuevo_saldo': f"{usuario.saldo:,.2f}"
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': 'Error al procesar la predicción.'}), 500
 
 # --- RUTAS DE AUTENTICACIÓN ---
 @app.route('/login', methods=['GET', 'POST'])
@@ -569,7 +575,7 @@ def resolver_mercado(id, resultado):
                     referencia=f"PRM-M-{id}",
                     banco_emisor='Sistema VIP',
                     estatus='Completado',
-                    fecha_transaccion=datetime.now().strftime("%d/%m/%Y")
+                    fecha_transaccion=get_hora_ve()
                 )
                 db.session.add(mov_premio_m)
             else:
@@ -587,13 +593,32 @@ def resolver_mercado(id, resultado):
 @app.route('/recargar_saldo', methods=['POST'])
 @login_required
 def recargar_saldo():
-    if current_user.username != 'omarbri': return "No autorizado", 403
-    usuario = db.session.get(Usuario, request.form.get('user_id'))
-    if usuario:
+    # 1. Validación de seguridad estricta del Administrador
+    if current_user.username != 'omarbri': 
+        return "No autorizado", 403
+
+    user_id = request.form.get('user_id')
+    try:
         monto = float(request.form.get('monto', 0))
+    except (ValueError, TypeError):
+        return "Monto inválido", 400
+
+    if monto <= 0:
+        return "El monto a recargar debe ser mayor a cero", 400
+
+    # 2. Bloque de Transacción Atómica
+    try:
+        # 'with_for_update()' bloquea la fila del usuario en la BD. 
+        # Nadie puede modificar su saldo desde otra ruta hasta que este commit termine.
+        usuario = Usuario.query.with_for_update().get(user_id)
+        
+        if not usuario:
+            return "Usuario no encontrado", 404
+
+        # Modificación del saldo segura
         usuario.saldo = round(usuario.saldo + monto, 2)
 
-        # ◄ AUDITORÍA: Registro de recarga manual por el Administrador
+        # Registro estricto de Auditoría financiera
         mov_manual = Movimiento(
             user_id=usuario.id,
             tipo='Recarga Manual',
@@ -601,27 +626,48 @@ def recargar_saldo():
             referencia=f"ADM-REC-{uuid.uuid4().hex[:4].upper()}",
             banco_emisor='Admin Panel',
             estatus='Completado',
-            fecha_transaccion=datetime.now().strftime("%d/%m/%Y")
+            fecha_transaccion=get_hora_ve()
         )
+        
         db.session.add(mov_manual)
+        
+        # Al hacer commit se guardan AMBAS cosas al mismo tiempo. Si una falla, no se guarda ninguna.
         db.session.commit()
+        print(f">>> [FINANZAS] Recarga exitosa. Usuario ID {usuario.id} +{monto} USD.")
+        
+    except Exception as e:
+        db.session.rollback() # Si algo falla en el camino, deshace todo y el dinero queda intacto
+        print(f"!!! [CRÍTICO] Falló la recarga del usuario {user_id}: {e}")
+        return "Error interno al procesar la transacción. Operación cancelada de forma segura.", 500
+
     return redirect(url_for('admin'))
 
 # --- WEBHOOK Y RETIROS ---
 @app.route('/webhook/pagos', methods=['POST'])
+@csrf.exempt
 def webhook_pagos():
     data = request.get_json()
-    if data.get('token') != "VIP_TOKEN_2026_TEST": return jsonify({"status": "error"}), 401
+    if data.get('token') != "VIP_TOKEN_2026_TEST": 
+        return jsonify({"status": "error"}), 401
+        
     usuario = db.session.get(Usuario, data.get('user_id'))
     if usuario:
         try:
             monto = round(float(data.get('monto')), 2)
             usuario.saldo = round(usuario.saldo + monto, 2)
             
-            # Capturamos la fecha si viene del simulador, de lo contrario usamos la actual
+            # ◄ NUEVA LÓGICA DE CONVERSIÓN DE FECHA A DATETIME
             fecha_final = data.get('fecha_personalizada')
-            if not fecha_final:
-                fecha_final = datetime.now().strftime("%d/%m/%Y")
+            if fecha_final:
+                try:
+                    # Si el simulador envía texto "DD/MM/YYYY", lo transformamos a objeto datetime
+                    fecha_obj = datetime.strptime(fecha_final, "%d/%m/%Y")
+                except ValueError:
+                    # Si por alguna razón el formato no coincide, usamos la hora de Venezuela como respaldo
+                    fecha_obj = get_hora_ve()
+            else:
+                # Si no se envía fecha personalizada, asignamos la hora real actual de Venezuela
+                fecha_obj = get_hora_ve()
 
             db.session.add(Movimiento(
                 user_id=usuario.id, 
@@ -630,7 +676,7 @@ def webhook_pagos():
                 referencia=data.get('referencia'), 
                 banco_emisor=data.get('banco', 'Pago Móvil'), 
                 estatus='Completado', 
-                fecha_transaccion=fecha_final
+                fecha_transaccion=fecha_obj  # ◄ Guardamos el objeto datetime limpio
             ))
             db.session.commit()
             return jsonify({"status": "success"}), 200
@@ -638,23 +684,59 @@ def webhook_pagos():
             db.session.rollback()
             return jsonify({"status": "error", "message": str(e)}), 500
     return jsonify({"status": "error"}), 404
-
+# ==========================================
+# 💸 RUTA DE RETIROS BLINDADA
+# ==========================================
 @app.route('/solicitar_retiro_auto', methods=['POST'])
+@csrf.exempt
 @login_required
 def solicitar_retiro_auto():
     data = request.get_json()
     try:
         monto = float(data.get('monto', 0))
-        if monto < 10 or current_user.saldo < monto: return jsonify({'status': 'error', 'message': 'Monto inválido'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'status': 'error', 'message': 'Monto inválido'}), 400
+
+    if monto < 10:
+        return jsonify({'status': 'error', 'message': 'El monto mínimo de retiro es 10 USD'}), 400
+
+    # Iniciamos el bloque de transacción atómica estricta
+    try:
+        # BLOQUEO DE FILA: Nadie puede tocar este usuario hasta el db.session.commit()
+        usuario = Usuario.query.with_for_update().get(current_user.id)
+        
+        if usuario.saldo < monto:
+            return jsonify({'status': 'error', 'message': 'Saldo insuficiente'}), 400
+
+        # 1. Primero debitamos el saldo internamente de forma segura en la BD
+        usuario.saldo = round(usuario.saldo - monto, 2)
+        
+        # 2. Ahora que el saldo está comprometido y bloqueado, llamamos de forma segura a la API externa/Simulador
         res_banco = mock_api_pago_movil(data.get('telefono'), data.get('cedula'), data.get('banco'), monto)
-        if res_banco['status'] == 'success':
-            current_user.saldo = round(current_user.saldo - monto, 2)
-            db.session.add(Movimiento(user_id=current_user.id, tipo='Retiro', monto=monto, referencia=res_banco['referencia_bancaria'], banco_emisor=data.get('banco'), estatus='Completado', fecha_transaccion=datetime.now().strftime("%d/%m/%Y")))
-            db.session.commit()
-            return jsonify({'status': 'success', 'nuevo_saldo': f"{current_user.saldo:,.2f}"})
+        
+        if res_banco.get('status') != 'success':
+            raise Exception("La pasarela bancaria rechazó la transacción.")
+
+        # 3. Registramos la auditoría del movimiento financiero
+        mov_retiro = Movimiento(
+            user_id=usuario.id, 
+            tipo='Retiro', 
+            monto=-monto, # Salida de dinero
+            referencia=res_banco['referencia_bancaria'], 
+            banco_emisor=data.get('banco'), 
+            estatus='Completado', 
+            fecha_transaccion=get_hora_ve()
+        )
+        db.session.add(mov_retiro)
+        
+        # Confirmamos la operación en la BD y liberamos el bloqueo del usuario
+        db.session.commit()
+        return jsonify({'status': 'success', 'nuevo_saldo': f"{usuario.saldo:,.2f}"})
+
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        db.session.rollback() # Si el banco falla o la BD truena, el dinero regresa intacto al usuario
+        print(f"!!! [FALLO CRÍTICO RETIRO] Usuario {current_user.id}: {e}")
+        return jsonify({'status': 'error', 'message': 'No se pudo procesar el retiro de forma segura.'}), 500
 
 @scheduler.task('interval', id='revisar_pendientes', seconds=120) # Aumentado a 2 minutos
 def revisar_sorteos_pasados():
@@ -874,6 +956,8 @@ from constantes import ANIMALITOS # Asegúrate de tener esto
 @app.route('/detalle_sorteo_animalito/<int:sorteo_id>')
 @login_required
 def detalle_sorteo_animalito(sorteo_id):
+    if current_user.username != 'omarbri':
+        return jsonify({'status': 'error', 'message': 'Acceso denegado'}), 403
     apuestas = ApuestaAnimalito.query.filter_by(sorteo_id=sorteo_id).all()
     resultado = []
     for ap in apuestas:
@@ -904,21 +988,35 @@ def add_mercado():
     return redirect(url_for('admin'))
 
 # --- INICIALIZACIÓN ---
+
 with app.app_context():
     db.create_all()
     actualizar_tasa_dolar()
+    
+    # Buscamos si ya existe tu usuario administrador
     if not Usuario.query.filter_by(username='omarbri').first():
-        admin_user = Usuario(nombre_completo="Admin Omar", cedula="00000000", username='omarbri', email='admin@teapuestovip.com', telefono='000000000', saldo=0.0)
-        admin_user.set_password('tu_clave_aqui')
+        # Obtenemos la contraseña de forma segura desde el archivo .env
+        # Si no existe en el .env, usamos un fallback extremadamente seguro temporal
+        admin_password = os.environ.get('ADMIN_PASSWORD', 'CambiarEstaClaveSuperSegura2026!')
+        
+        admin_user = Usuario(
+            nombre_completo="Admin Omar", 
+            cedula="00000000", 
+            username='omarbri', 
+            email='admin@teapuestovip.com', 
+            telefono='000000000', 
+            saldo=0.0
+        )
+        admin_user.set_password(admin_password)
         db.session.add(admin_user)
         db.session.commit()
+        print("ℹ️ [Seguridad] Usuario administrador 'omarbri' creado con éxito desde variables de entorno.")
 
     config = Configuracion.query.first()
     if config and config.piloto_automatico:
         print("🤖 [Sistema] Verificando parrilla de sorteos para HOY tras reinicio del servidor...")
         hoy = get_hora_ve().date()
         ejecutar_programacion_parrilla(hoy)
-
 @app.route('/actualizar_limites', methods=['POST'])
 @login_required
 def actualizar_limites():
