@@ -1,3 +1,5 @@
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from flask_wtf.csrf import CSRFProtect
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
@@ -55,6 +57,18 @@ app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'un_fallback_local
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'teapuesto.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.register_blueprint(consultas_bp)
+# --- CONFIGURACIÓN DE CORREO (SMTP) ---
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'inversionesomarbri@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '') # Toma la clave de aplicación del .env
+app.config['MAIL_DEFAULT_SENDER'] = ('TEAPUESTOVIP', app.config['MAIL_USERNAME'])
+
+mail = Mail(app)
+
+# Serializador para generar tokens seguros con fecha de expiración
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 # 2. IMPORTAMOS DB Y LOS MODELOS
 # ◄ MODIFICACIÓN: Incluimos SesionCaja
 from models import db, Usuario, Sorteo, Mercado, ApuestaMercado, ApuestaAnimalito, Movimiento, Configuracion, SesionCaja
@@ -1085,5 +1099,71 @@ def detalle_mercado_apuestas(mercado_id):
         'apuestas': resultado
     })
 
+# ==========================================
+# 🔑 RECUPERACIÓN DE CONTRASEÑA
+# ==========================================
+
+@app.route('/olvide_password', methods=['GET', 'POST'])
+def olvide_password():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        user = Usuario.query.filter_by(email=email).first()
+
+        if user:
+            token = serializer.dumps(email, salt='recuperar-password-salt')
+            link = url_for('restablecer_password', token=token, _external=True)
+
+            msg = Message('Recuperación de Contraseña - TEAPUESTOVIP', recipients=[email])
+            msg.body = f"""Hola {user.nombre_completo},
+
+Has solicitado restablecer tu contraseña en TEAPUESTOVIP. Haz clic en el siguiente enlace para crear una nueva contraseña:
+
+{link}
+
+Este enlace es válido por 30 minutos. Si no realizaste esta solicitud, puedes ignorar este correo.
+
+Atentamente,
+El equipo de TEAPUESTOVIP.
+"""
+            try:
+                mail.send(msg)
+                flash("Hemos enviado un enlace de recuperación a tu correo electrónico.")
+            except Exception as e:
+                print(f"❌ Error al enviar correo: {e}")
+                flash("Hubo un error al enviar el correo. Revisa la configuración del servidor.")
+        else:
+            flash("Si el correo está registrado en el sistema, recibirás un enlace de recuperación.")
+
+        return redirect(url_for('login'))
+
+    return render_template('olvide_password.html')
+
+
+@app.route('/restablecer_password/<token>', methods=['GET', 'POST'])
+def restablecer_password(token):
+    try:
+        email = serializer.loads(token, salt='recuperar-password-salt', max_age=1800)
+    except (SignatureExpired, BadTimeSignature):
+        flash("El enlace de recuperación ha expirado o es inválido. Solicita uno nuevo.")
+        return redirect(url_for('olvide_password'))
+
+    user = Usuario.query.filter_by(email=email).first_or_404()
+
+    if request.method == 'POST':
+        nueva_clave = request.form.get('password')
+        confirmar_clave = request.form.get('confirm_password')
+
+        if not nueva_clave or nueva_clave != confirmar_clave:
+            flash("Las contraseñas no coinciden o están vacías.")
+            return render_template('restablecer_password.html', token=token)
+
+        user.set_password(nueva_clave)
+        db.session.commit()
+
+        flash("¡Tu contraseña ha sido actualizada con éxito! Ya puedes iniciar sesión.")
+        return redirect(url_for('login'))
+
+    return render_template('restablecer_password.html', token=token)
 if __name__ == '__main__':
     app.run(threaded=True, debug=False)
+
