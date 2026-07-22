@@ -8,6 +8,7 @@ from flask_migrate import Migrate
 from sqlalchemy import func
 from functools import wraps
 from consultas import consultas_bp
+from pathlib import Path
 from dotenv import load_dotenv  
 import os
 import random
