@@ -19,7 +19,8 @@ import constantes
 from constantes import ANIMALITOS, ICONOS_ANIMALITOS, TOKEN_API_SEGURO
 from flask_apscheduler import APScheduler
 import pytz
-load_dotenv()
+env_path = Path(__file__).resolve().parent / '.env'
+load_dotenv(dotenv_path=env_path)
 # Zona horaria oficial de Venezuela
 TZ_VENEZUELA = pytz.timezone('America/Caracas')
 
