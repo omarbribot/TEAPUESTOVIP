@@ -59,12 +59,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.register_blueprint(consultas_bp)
 # --- CONFIGURACIÓN DE CORREO (SMTP) ---
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 465
-app.config['MAIL_USE_TLS'] = False
-app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False  # Importante: SSL en False al usar TLS
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'inversionesomarbri@gmail.com')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'tu_clave_de_16_letras_aqui')
-app.config['MAIL_DEFAULT_SENDER'] = ('TEAPUESTOVIP', app.config['MAIL_USERNAME'])
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = ('TEAPUESTOVIP', os.environ.get('MAIL_USERNAME', 'inversionesomarbri@gmail.com'))
 
 mail = Mail(app)
 
